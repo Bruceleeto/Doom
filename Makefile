@@ -405,7 +405,8 @@ all: $(BINARY)
 
 $(BINARY): $(OBJ_ALL)
 	@echo "  LINK  $@"
-	@$(CXX) $(LDFLAGS) -o $@ $^ $(LIBS)
+	@$(CXX) $(LDFLAGS) -Wl,-Map,$(BINARY).map -o $@ $^ $(LIBS)
+	@echo "  MAP   $(BINARY).map"
 
 # C++ objects
 $(BUILDDIR)/%.o: $(SRCDIR)/%.cpp
@@ -446,6 +447,6 @@ $(BUILDDIR)/sound/stbvorbis_impl.o: $(SRCDIR)/sound/stbvorbis_impl.c
 	@$(CC) $(CFLAGS) -O2 -MMD -MP -c -o $@ $<
 
 clean:
-	rm -rf $(BUILDDIR) $(BINARY)
+	rm -rf $(BUILDDIR) $(BINARY) $(BINARY).map
 
 -include $(DEPS)
