@@ -898,7 +898,7 @@ bool idAF::Load( idEntity *ent, const char *fileName ) {
 			//  and thus DECLAF_CONSTRAINT_SLIDER != CONSTRAINT_SLIDER (5 != 6)
 			//  and DECLAF_CONSTRAINT_SPRING != CONSTRAINT_SPRING (6 != 10)
 			if ( file->constraints[j]->name.Icmp( constraint->GetName() ) == 0 &&
-					file->constraints[j]->type == constraint->GetType() ) {
+					(int)file->constraints[j]->type == (int)constraint->GetType() ) {
 				break;
 			}
 		}

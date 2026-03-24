@@ -26,8 +26,6 @@ If you have questions concerning this license or the applicable additional terms
 ===========================================================================
 */
 #include "sys/platform.h"
-#include "sys/sys_imgui.h"
-
 #include "renderer/tr_local.h"
 
 static idCVar r_fillWindowAlphaChan( "r_fillWindowAlphaChan", "-1", CVAR_SYSTEM | CVAR_NOCHEAT | CVAR_ARCHIVE, "Make sure alpha channel of windows default framebuffer is completely opaque at the end of each frame. Needed at least when using Wayland with older drivers.\n 1: do this, 0: don't do it, -1: let dhewm3 decide (default)" );
@@ -531,8 +529,6 @@ const void	RB_SwapBuffers( const void *data ) {
 	if ( r_showImages.GetInteger() != 0 ) {
 		RB_ShowImages();
 	}
-
-	D3::ImGuiHooks::EndFrame();
 
 	int fillAlpha = r_fillWindowAlphaChan.GetInteger();
 	if ( fillAlpha == 1 || (fillAlpha == -1 && glConfig.shouldFillWindowAlpha) )

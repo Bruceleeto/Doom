@@ -39,8 +39,6 @@ If you have questions concerning this license or the applicable additional terms
 #include "renderer/tr_local.h"
 
 #include "sys/sys_public.h"
-#include "sys/sys_imgui.h"
-
 #if !SDL_VERSION_ATLEAST(2, 0, 0)
 #define SDL_Keycode SDLKey
 #define SDLK_APPLICATION SDLK_COMPOSE
@@ -1245,11 +1243,6 @@ sysEvent_t Sys_GetEvent() {
 
 	// loop until there is an event we care about (will return then) or no more events
 	while(SDL_PollEvent(&ev)) {
-		if(D3::ImGuiHooks::ProcessEvent(&ev)) {
-			// ImGui has used the event, so it shouldn't also be handled by the game
-			continue;
-		}
-
 		switch (ev.type) {
 #if SDL_VERSION_ATLEAST(3, 0, 0)
 			case SDL_EVENT_WINDOW_FOCUS_GAINED: {
@@ -1742,10 +1735,8 @@ static void handleMouseGrab() {
 	bool relativeMouse = false;
 	bool enableTextInput = false;
 
-	const bool imguiHasFocus = D3::ImGuiHooks::ShouldShowCursor();
-
 	// if com_editorActive, release everything, just like when we have no focus
-	if ( in_hasFocus && !com_editorActive && !imguiHasFocus ) {
+	if ( in_hasFocus && !com_editorActive ) {
 		// Note: this generally handles fullscreen menus, but not the PDA, because the PDA
 		//       is an ugly hack in gamecode that doesn't go through sessLocal.guiActive.
 		//       It goes through weapon input code or sth? That's also the reason only
@@ -1777,10 +1768,6 @@ static void handleMouseGrab() {
 		}
 	} else {
 		in_relativeMouseMode = false;
-		// if an ImGui window has focus, enable text input so one can write in there
-		// TODO: add explicit GRAB_DISABLETEXTINPUT and don't set it at all here for ImGui?
-		//  in theory, ImGui handles that itself, but currently GLimp_GrabInput() seems to override it
-		enableTextInput = imguiHasFocus;
 	}
 
 	int flags = 0;

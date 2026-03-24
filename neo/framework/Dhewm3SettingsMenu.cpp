@@ -15,8 +15,6 @@
 #include "DeclEntityDef.h"
 #include "Session_local.h" // sessLocal.GetActiveMenu()
 
-#include "sys/sys_imgui.h"
-#include "../libs/imgui/imgui_internal.h"
 
 #include "renderer/tr_local.h" // render cvars
 #include "sound/snd_local.h" // sound cvars
