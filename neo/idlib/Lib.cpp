@@ -35,16 +35,7 @@ If you have questions concerning this license or the applicable additional terms
 #include <unistd.h>
 #endif
 
-#ifdef D3_SDL3
-  #include <SDL3/SDL_endian.h>
-  // some defines for backwards-compat with SDL2
-  #define SDL_SwapBE16(X)  SDL_Swap16BE(X)
-  #define SDL_SwapLE16(X)  SDL_Swap16LE(X)
-  #define SDL_SwapBE32(X)  SDL_Swap32BE(X)
-  #define SDL_SwapLE32(X)  SDL_Swap32LE(X)
-#else // SDL1.2 or SDL2
-  #include <SDL_endian.h>
-#endif
+#include <SDL_endian.h>
 
 #ifndef D3_IS_BIG_ENDIAN
   #error "D3_IS_BIG_ENDIAN should be defined by the build system (CMake)!"

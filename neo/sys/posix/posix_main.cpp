@@ -358,28 +358,15 @@ ID_TIME_T Sys_FileTimeStamp(FILE * fp) {
 }
 
 char *Sys_GetClipboardData(void) {
-#if SDL_VERSION_ATLEAST(2, 0, 0)
 	return SDL_GetClipboardText();
-#else
-	Sys_Printf( "TODO: Sys_GetClipboardData\n" );
-	return NULL;
-#endif
 }
 
 void Sys_FreeClipboardData( char* data ) {
-#if SDL_VERSION_ATLEAST(2, 0, 0)
 	SDL_free( data );
-#else
-	assert( 0 && "why is this called, Sys_GetClipboardData() isn't implemented for SDL1.2" );
-#endif
 }
 
 void Sys_SetClipboardData( const char *string ) {
-#if SDL_VERSION_ATLEAST(2, 0, 0)
 	SDL_SetClipboardText( string );
-#else
-	Sys_Printf( "TODO: Sys_SetClipboardData\n" );
-#endif
 }
 
 /*

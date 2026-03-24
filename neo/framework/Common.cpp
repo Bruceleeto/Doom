@@ -28,11 +28,6 @@ If you have questions concerning this license or the applicable additional terms
 
 #include "sys/sys_sdl.h"
 
-#if SDL_VERSION_ATLEAST(3, 0, 0)
-  // DG: compat with SDL2
-  #define SDL_setenv SDL_setenv_unsafe
-#endif
-
 #include "sys/platform.h"
 #include "idlib/containers/HashTable.h"
 #include "idlib/LangDict.h"
@@ -2998,32 +2993,14 @@ void idCommonLocal::Init( int argc, char **argv ) {
 	// we want to use the SDL event queue for dedicated servers. That
 	// requires video to be initialized, so we just use the dummy
 	// driver for headless boxen
-#if SDL_VERSION_ATLEAST(3, 0, 0)
-	SDL_SetHint(SDL_HINT_VIDEO_DRIVER, "dummy");
-#elif SDL_VERSION_ATLEAST(2, 0, 0)
 	SDL_setenv("SDL_VIDEODRIVER", "dummy", 1);
-#else
-	char dummy[] = "SDL_VIDEODRIVER=dummy\0";
-	SDL_putenv(dummy);
-#endif
 #endif
 
-#if SDL_VERSION_ATLEAST(3, 0, 0)
-	if ( ! SDL_Init(SDL_INIT_VIDEO | SDL_INIT_JOYSTICK | SDL_INIT_GAMEPAD) )
-	{
-		if ( SDL_Init(SDL_INIT_VIDEO) ) { // retry without joystick/gamepad if it failed
-			Sys_Printf( "WARNING: Couldn't get SDL gamepad support! Gamepads won't work!\n" );
-		} else
-#elif SDL_VERSION_ATLEAST(2, 0, 0)
 	if (SDL_Init(SDL_INIT_TIMER | SDL_INIT_VIDEO | SDL_INIT_JOYSTICK | SDL_INIT_GAMECONTROLLER) != 0)
 	{
 		if (SDL_Init(SDL_INIT_TIMER | SDL_INIT_VIDEO) == 0) { // retry without joystick/gamecontroller if it failed
 			Sys_Printf( "WARNING: Couldn't get SDL gamecontroller support! Gamepads won't work!\n" );
 		} else
-#else // SDL1.2
-	if (SDL_Init(SDL_INIT_TIMER | SDL_INIT_VIDEO) != 0) // no gamecontroller support in SDL1
-	{
-#endif
 		{
 			Sys_Error("Error while initializing SDL: %s", SDL_GetError());
 		}
@@ -3031,7 +3008,6 @@ void idCommonLocal::Init( int argc, char **argv ) {
 
 	Sys_InitThreads();
 
-#if SDL_VERSION_ATLEAST(2, 0, 0)
 	/* Force the window to minimize when focus is lost. This was the
 	 * default behavior until SDL 2.0.12 and changed with 2.0.14.
 	 * The windows staying maximized has some odd implications for
@@ -3049,7 +3025,6 @@ void idCommonLocal::Init( int argc, char **argv ) {
 		SDL_setenv("SDL_ENABLE_SCREEN_KEYBOARD", "0", 0);
 	}
   #endif
-#endif
 
 	try {
 
@@ -3081,26 +3056,12 @@ void idCommonLocal::Init( int argc, char **argv ) {
 		idCVar::RegisterStaticVars();
 
 		// print engine version
-#if SDL_VERSION_ATLEAST(3, 0, 0)
-		int sdlv = SDL_GetVersion();
-		int sdlvmaj = SDL_VERSIONNUM_MAJOR(sdlv);
-		int sdlvmin = SDL_VERSIONNUM_MINOR(sdlv);
-		int sdlvmicro = SDL_VERSIONNUM_MICRO(sdlv);
-		Printf( "%s using SDL v%d.%d.%d\n", version.string, sdlvmaj, sdlvmin, sdlvmicro );
-#else
-  #if SDL_VERSION_ATLEAST(2, 0, 0)
 		SDL_version sdlv;
 		SDL_GetVersion(&sdlv);
-  #else
-		SDL_version sdlv = *SDL_Linked_Version();
-  #endif
 		Printf( "%s using SDL v%u.%u.%u\n",
 				version.string, sdlv.major, sdlv.minor, sdlv.patch );
-#endif
 
-#if SDL_VERSION_ATLEAST(2, 0, 0)
 		Printf( "SDL video driver: %s\n", SDL_GetCurrentVideoDriver() );
-#endif
 
 		// initialize key input/binding, done early so bind command exists
 		idKeyInput::Init();
