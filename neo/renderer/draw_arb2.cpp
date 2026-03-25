@@ -55,65 +55,32 @@ RB_ARB2_DrawInteraction
 ==================
 */
 void	RB_ARB2_DrawInteraction( const drawInteraction_t *din ) {
-	// load vertex program parameters
-	qglProgramEnvParameter4fvARB( GL_VERTEX_PROGRAM_ARB, PP_LIGHT_ORIGIN, din->localLightOrigin.ToFloatPtr() );
-	qglProgramEnvParameter4fvARB( GL_VERTEX_PROGRAM_ARB, PP_VIEW_ORIGIN, din->localViewOrigin.ToFloatPtr() );
-	qglProgramEnvParameter4fvARB( GL_VERTEX_PROGRAM_ARB, PP_LIGHT_PROJECT_S, din->lightProjection[0].ToFloatPtr() );
-	qglProgramEnvParameter4fvARB( GL_VERTEX_PROGRAM_ARB, PP_LIGHT_PROJECT_T, din->lightProjection[1].ToFloatPtr() );
-	qglProgramEnvParameter4fvARB( GL_VERTEX_PROGRAM_ARB, PP_LIGHT_PROJECT_Q, din->lightProjection[2].ToFloatPtr() );
-	qglProgramEnvParameter4fvARB( GL_VERTEX_PROGRAM_ARB, PP_LIGHT_FALLOFF_S, din->lightProjection[3].ToFloatPtr() );
-	qglProgramEnvParameter4fvARB( GL_VERTEX_PROGRAM_ARB, PP_DIFFUSE_MATRIX_S, din->diffuseMatrix[0].ToFloatPtr() );
-	qglProgramEnvParameter4fvARB( GL_VERTEX_PROGRAM_ARB, PP_DIFFUSE_MATRIX_T, din->diffuseMatrix[1].ToFloatPtr() );
+	// FFP interaction: lightProjection * lightFalloff * diffuseTexture * diffuseColor
+	//
+	// Unit 0: light projection (projective texgen S, T, Q)
+	// Unit 1: light falloff (texgen S, T fixed at 0.5)
+	// Unit 2: diffuse map (vertex texcoords)
+	// Vertex color: diffuseColor
 
-	static const float zero[4] = { 0, 0, 0, 0 };
-	static const float one[4] = { 1, 1, 1, 1 };
-	static const float negOne[4] = { -1, -1, -1, -1 };
+	qglColor4fv( din->diffuseColor.ToFloatPtr() );
 
-	switch ( din->vertexColor ) {
-	case SVC_IGNORE:
-		qglProgramEnvParameter4fvARB( GL_VERTEX_PROGRAM_ARB, PP_COLOR_MODULATE, zero );
-		qglProgramEnvParameter4fvARB( GL_VERTEX_PROGRAM_ARB, PP_COLOR_ADD, one );
-		break;
-	case SVC_MODULATE:
-		qglProgramEnvParameter4fvARB( GL_VERTEX_PROGRAM_ARB, PP_COLOR_MODULATE, one );
-		qglProgramEnvParameter4fvARB( GL_VERTEX_PROGRAM_ARB, PP_COLOR_ADD, zero );
-		break;
-	case SVC_INVERSE_MODULATE:
-		qglProgramEnvParameter4fvARB( GL_VERTEX_PROGRAM_ARB, PP_COLOR_MODULATE, negOne );
-		qglProgramEnvParameter4fvARB( GL_VERTEX_PROGRAM_ARB, PP_COLOR_ADD, one );
-		break;
-	}
-
-	// diffuse color only — specular removed
-	qglProgramEnvParameter4fvARB( GL_FRAGMENT_PROGRAM_ARB, 0, din->diffuseColor.ToFloatPtr() );
-	qglProgramEnvParameter4fvARB( GL_FRAGMENT_PROGRAM_ARB, 1, zero );
-
-	if ( r_gammaInShader.GetBool() ) {
-		float parm[4];
-		parm[0] = parm[1] = parm[2] = r_brightness.GetFloat();
-		parm[3] = 1.0/r_gamma.GetFloat();
-		qglProgramEnvParameter4fvARB( GL_FRAGMENT_PROGRAM_ARB, PP_GAMMA_BRIGHTNESS, parm );
-	}
-
-	// texture 1 — flat normal (bump removed)
-	GL_SelectTextureNoClient( 1 );
-	din->bumpImage->Bind();
-
-	// texture 2 — light falloff
-	GL_SelectTextureNoClient( 2 );
-	din->lightFalloffImage->Bind();
-
-	// texture 3 — light projection
-	GL_SelectTextureNoClient( 3 );
+	// unit 0: light projection — projective texture
+	GL_SelectTexture( 0 );
 	din->lightImage->Bind();
+	qglTexGenfv( GL_S, GL_OBJECT_PLANE, din->lightProjection[0].ToFloatPtr() );
+	qglTexGenfv( GL_T, GL_OBJECT_PLANE, din->lightProjection[1].ToFloatPtr() );
+	qglTexGenfv( GL_Q, GL_OBJECT_PLANE, din->lightProjection[2].ToFloatPtr() );
 
-	// texture 4 — diffuse map
-	GL_SelectTextureNoClient( 4 );
+	// unit 1: light falloff — S from texgen, T fixed at 0.5
+	static const float halfPlane[4] = { 0, 0, 0, 0.5f };
+	GL_SelectTexture( 1 );
+	din->lightFalloffImage->Bind();
+	qglTexGenfv( GL_S, GL_OBJECT_PLANE, din->lightProjection[3].ToFloatPtr() );
+	qglTexGenfv( GL_T, GL_OBJECT_PLANE, halfPlane );
+
+	// unit 2: diffuse map — from vertex texcoords
+	GL_SelectTexture( 2 );
 	din->diffuseImage->Bind();
-
-	// texture 5 — black (specular removed)
-	GL_SelectTextureNoClient( 5 );
-	globalImages->blackImage->Bind();
 
 	RB_DrawElementsWithCounters( din->surf->geo );
 }
@@ -130,80 +97,63 @@ void RB_ARB2_CreateDrawInteractions( const drawSurf_t *surf ) {
 		return;
 	}
 
-	// perform setup here that will be constant for all interactions
+	// additive blending for light accumulation
 	GL_State( GLS_SRCBLEND_ONE | GLS_DSTBLEND_ONE | GLS_DEPTHMASK | backEnd.depthFunc );
 
-	// bind the vertex program
-	if ( r_testARBProgram.GetBool() ) {
-		qglBindProgramARB( GL_VERTEX_PROGRAM_ARB, VPROG_TEST );
-		qglBindProgramARB( GL_FRAGMENT_PROGRAM_ARB, FPROG_TEST );
-	} else {
-		qglBindProgramARB( GL_VERTEX_PROGRAM_ARB, VPROG_INTERACTION );
-		qglBindProgramARB( GL_FRAGMENT_PROGRAM_ARB, FPROG_INTERACTION );
-	}
+	// unit 0: light projection — projective texgen
+	GL_SelectTexture( 0 );
+	qglDisableClientState( GL_TEXTURE_COORD_ARRAY );
+	qglEnable( GL_TEXTURE_GEN_S );
+	qglEnable( GL_TEXTURE_GEN_T );
+	qglEnable( GL_TEXTURE_GEN_Q );
+	qglTexGeni( GL_S, GL_TEXTURE_GEN_MODE, GL_OBJECT_LINEAR );
+	qglTexGeni( GL_T, GL_TEXTURE_GEN_MODE, GL_OBJECT_LINEAR );
+	qglTexGeni( GL_Q, GL_TEXTURE_GEN_MODE, GL_OBJECT_LINEAR );
+	GL_TexEnv( GL_MODULATE );
 
-	qglEnable(GL_VERTEX_PROGRAM_ARB);
-	qglEnable(GL_FRAGMENT_PROGRAM_ARB);
+	// unit 1: light falloff — texgen S and T
+	GL_SelectTexture( 1 );
+	qglDisableClientState( GL_TEXTURE_COORD_ARRAY );
+	qglEnable( GL_TEXTURE_GEN_S );
+	qglEnable( GL_TEXTURE_GEN_T );
+	qglTexGeni( GL_S, GL_TEXTURE_GEN_MODE, GL_OBJECT_LINEAR );
+	qglTexGeni( GL_T, GL_TEXTURE_GEN_MODE, GL_OBJECT_LINEAR );
+	GL_TexEnv( GL_MODULATE );
 
-	// enable the vertex arrays
-	qglEnableVertexAttribArrayARB( 8 );
-	qglEnableVertexAttribArrayARB( 9 );
-	qglEnableVertexAttribArrayARB( 10 );
-	qglEnableVertexAttribArrayARB( 11 );
-	qglEnableClientState( GL_COLOR_ARRAY );
-
-	// texture 0 is the normalization cube map for the vector towards the light
-	GL_SelectTextureNoClient( 0 );
-	if ( backEnd.vLight->lightShader->IsAmbientLight() ) {
-		globalImages->ambientNormalMap->Bind();
-	} else {
-		globalImages->normalCubeMapImage->Bind();
-	}
+	// unit 2: diffuse map from vertex texcoords
+	GL_SelectTexture( 2 );
+	qglEnableClientState( GL_TEXTURE_COORD_ARRAY );
+	GL_TexEnv( GL_MODULATE );
 
 	for ( ; surf ; surf=surf->nextOnLight ) {
-		// perform setup here that will not change over multiple interaction passes
+		if ( !surf->geo || !surf->geo->ambientCache ) {
+			continue;
+		}
 
-		// set the vertex pointers
-		idDrawVert	*ac = (idDrawVert *)vertexCache.Position( surf->geo->ambientCache );
-		qglColorPointer( 4, GL_UNSIGNED_BYTE, sizeof( idDrawVert ), ac->color );
-		qglVertexAttribPointerARB( 11, 3, GL_FLOAT, false, sizeof( idDrawVert ), ac->normal.ToFloatPtr() );
-		qglVertexAttribPointerARB( 10, 3, GL_FLOAT, false, sizeof( idDrawVert ), ac->tangents[1].ToFloatPtr() );
-		qglVertexAttribPointerARB( 9, 3, GL_FLOAT, false, sizeof( idDrawVert ), ac->tangents[0].ToFloatPtr() );
-		qglVertexAttribPointerARB( 8, 2, GL_FLOAT, false, sizeof( idDrawVert ), ac->st.ToFloatPtr() );
+		idDrawVert *ac = (idDrawVert *)vertexCache.Position( surf->geo->ambientCache );
 		qglVertexPointer( 3, GL_FLOAT, sizeof( idDrawVert ), ac->xyz.ToFloatPtr() );
 
-		// this may cause RB_ARB2_DrawInteraction to be exacuted multiple
-		// times with different colors and images if the surface or light have multiple layers
+		GL_SelectTexture( 2 );
+		qglTexCoordPointer( 2, GL_FLOAT, sizeof( idDrawVert ), ac->st.ToFloatPtr() );
+
 		RB_CreateSingleDrawInteractions( surf, RB_ARB2_DrawInteraction );
 	}
 
-	qglDisableVertexAttribArrayARB( 8 );
-	qglDisableVertexAttribArrayARB( 9 );
-	qglDisableVertexAttribArrayARB( 10 );
-	qglDisableVertexAttribArrayARB( 11 );
-	qglDisableClientState( GL_COLOR_ARRAY );
-
-	// disable features
-	GL_SelectTextureNoClient( 5 );
+	// tear down
+	GL_SelectTexture( 2 );
+	qglDisableClientState( GL_TEXTURE_COORD_ARRAY );
 	globalImages->BindNull();
 
-	GL_SelectTextureNoClient( 4 );
+	GL_SelectTexture( 1 );
+	qglDisable( GL_TEXTURE_GEN_S );
+	qglDisable( GL_TEXTURE_GEN_T );
 	globalImages->BindNull();
 
-	GL_SelectTextureNoClient( 3 );
-	globalImages->BindNull();
-
-	GL_SelectTextureNoClient( 2 );
-	globalImages->BindNull();
-
-	GL_SelectTextureNoClient( 1 );
-	globalImages->BindNull();
-
-	backEnd.glState.currenttmu = -1;
 	GL_SelectTexture( 0 );
-
-	qglDisable(GL_VERTEX_PROGRAM_ARB);
-	qglDisable(GL_FRAGMENT_PROGRAM_ARB);
+	qglDisable( GL_TEXTURE_GEN_S );
+	qglDisable( GL_TEXTURE_GEN_T );
+	qglDisable( GL_TEXTURE_GEN_Q );
+	globalImages->BindNull();
 }
 
 
@@ -254,22 +204,10 @@ void RB_ARB2_DrawInteractions( void ) {
 			qglStencilFunc( GL_ALWAYS, 128, 255 );
 		}
 
-		if ( r_useShadowVertexProgram.GetBool() ) {
-			qglEnable( GL_VERTEX_PROGRAM_ARB );
-			qglBindProgramARB( GL_VERTEX_PROGRAM_ARB, VPROG_STENCIL_SHADOW );
-			RB_StencilShadowPass( vLight->globalShadows );
-			RB_ARB2_CreateDrawInteractions( vLight->localInteractions );
-			qglEnable( GL_VERTEX_PROGRAM_ARB );
-			qglBindProgramARB( GL_VERTEX_PROGRAM_ARB, VPROG_STENCIL_SHADOW );
-			RB_StencilShadowPass( vLight->localShadows );
-			RB_ARB2_CreateDrawInteractions( vLight->globalInteractions );
-			qglDisable( GL_VERTEX_PROGRAM_ARB );	// if there weren't any globalInteractions, it would have stayed on
-		} else {
-			RB_StencilShadowPass( vLight->globalShadows );
-			RB_ARB2_CreateDrawInteractions( vLight->localInteractions );
-			RB_StencilShadowPass( vLight->localShadows );
-			RB_ARB2_CreateDrawInteractions( vLight->globalInteractions );
-		}
+		RB_StencilShadowPass( vLight->globalShadows );
+		RB_ARB2_CreateDrawInteractions( vLight->localInteractions );
+		RB_StencilShadowPass( vLight->localShadows );
+		RB_ARB2_CreateDrawInteractions( vLight->globalInteractions );
 
 		// translucent surfaces never get stencil shadowed
 		if ( r_skipTranslucent.GetBool() ) {

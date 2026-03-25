@@ -155,7 +155,7 @@ void RB_PrepareStageTexturing( const shaderStage_t *pStage,  const drawSurf_t *s
 	}
 
 	if ( pStage->texture.texgen == TG_GLASSWARP ) {
-		if ( tr.backEndRenderer == BE_ARB2 /*|| tr.backEndRenderer == BE_NV30*/ ) {
+		if ( tr.backEndRendererHasVertexPrograms ) {
 			qglBindProgramARB( GL_FRAGMENT_PROGRAM_ARB, FPROG_GLASSWARP );
 			qglEnable( GL_FRAGMENT_PROGRAM_ARB );
 
@@ -195,7 +195,7 @@ void RB_PrepareStageTexturing( const shaderStage_t *pStage,  const drawSurf_t *s
 	}
 
 	if ( pStage->texture.texgen == TG_REFLECT_CUBE ) {
-		if ( tr.backEndRenderer == BE_ARB2 ) {
+		if ( tr.backEndRendererHasVertexPrograms ) {
 			// see if there is also a bump map specified
 			const shaderStage_t *bumpStage = surf->material->GetBumpStage();
 			if ( bumpStage ) {
@@ -277,7 +277,7 @@ void RB_FinishStageTexturing( const shaderStage_t *pStage, const drawSurf_t *sur
 	}
 
 	if ( pStage->texture.texgen == TG_GLASSWARP ) {
-		if ( tr.backEndRenderer == BE_ARB2 /*|| tr.backEndRenderer == BE_NV30*/ ) {
+		if ( tr.backEndRendererHasVertexPrograms ) {
 			GL_SelectTexture( 2 );
 			globalImages->BindNull();
 
@@ -295,7 +295,7 @@ void RB_FinishStageTexturing( const shaderStage_t *pStage, const drawSurf_t *sur
 	}
 
 	if ( pStage->texture.texgen == TG_REFLECT_CUBE ) {
-		if ( tr.backEndRenderer == BE_ARB2 ) {
+		if ( tr.backEndRendererHasVertexPrograms ) {
 			// see if there is also a bump map specified
 			const shaderStage_t *bumpStage = surf->material->GetBumpStage();
 			if ( bumpStage ) {
@@ -822,8 +822,11 @@ void RB_STD_T_RenderShaderPasses( const drawSurf_t *surf ) {
 		// determine the blend mode (used by soft particles #3878)
 		const int src_blend = pStage->drawStateBits & GLS_SRCBLEND_BITS;
 
-		// see if we are a new-style stage
+		// new-style stages require ARB programs — skip entirely without VP support
 		newShaderStage_t *newStage = pStage->newStage;
+		if ( newStage && !tr.backEndRendererHasVertexPrograms ) {
+			continue;
+		}
 		if ( newStage ) {
 			//--------------------------
 			//
@@ -1033,7 +1036,7 @@ int RB_STD_DrawShaderPasses( drawSurf_t **drawSurfs, int numDrawSurfs ) {
 		isPostProcess = true;
 
 		// only dump if in a 3d view
-		if ( backEnd.viewDef->viewEntitys && tr.backEndRenderer == BE_ARB2 ) {
+		if ( backEnd.viewDef->viewEntitys && tr.backEndRendererHasVertexPrograms ) {
 			globalImages->currentRenderImage->CopyFramebuffer( backEnd.viewDef->viewport.x1,
 				backEnd.viewDef->viewport.y1,  backEnd.viewDef->viewport.x2 -  backEnd.viewDef->viewport.x1 + 1,
 				backEnd.viewDef->viewport.y2 -  backEnd.viewDef->viewport.y1 + 1, true );

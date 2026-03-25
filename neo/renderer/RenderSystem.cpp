@@ -548,9 +548,9 @@ void idRenderSystemLocal::SetBackEndRenderer() {
 
 	switch( backEndRenderer ) {
 	case BE_ARB2:
-		common->Printf( "using ARB2 renderSystem\n" );
-		backEndRendererHasVertexPrograms = true;
-		backEndRendererMaxLight = 999;
+		common->Printf( "using FFP renderSystem\n" );
+		backEndRendererHasVertexPrograms = false;
+		backEndRendererMaxLight = 1.0;
 		break;
 	default:
 		common->FatalError( "SetbackEndRenderer: bad back end" );
