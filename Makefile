@@ -78,7 +78,6 @@ SRC_RENDERER := \
 	renderer/Image_program.cpp \
 	renderer/Interaction.cpp \
 	renderer/Material.cpp \
-	renderer/MegaTexture.cpp \
 	renderer/Model.cpp \
 	renderer/ModelDecal.cpp \
 	renderer/ModelManager.cpp \
