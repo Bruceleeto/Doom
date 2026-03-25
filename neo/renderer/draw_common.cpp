@@ -515,8 +515,6 @@ void RB_T_FillDepthBuffer( const drawSurf_t *surf ) {
 }
 
 
-void RB_SetProgramEnvironment( bool isPostProcess ); // so RB_STD_FillDepthBuffer() can use it
-
 /*
 =====================
 RB_STD_FillDepthBuffer
@@ -576,157 +574,6 @@ SHADER PASSES
 
 /*
 ==================
-RB_SetProgramEnvironment
-
-Sets variables that can be used by all vertex programs
-
-[SteveL #3877] Note on the use of fragment program environmental variables.
-Parameters 0 and 1 are set here to allow conversion of screen coordinates to
-texture coordinates, for use when sampling _currentRender.
-Those same parameters 0 and 1, plus 2 and 3, are given entirely different
-meanings in draw_arb2.cpp while light interactions are being drawn.
-This function is called again before currentRender size is needed by post processing
-effects are done, so there's no clash.
-Only parameters 0..3 were in use before #3877 - and in dhewm3 also 4, for gamma in shader.
-Now I've used a new parameter 22 for the size of _currentDepth. It's needed throughout,
-including by light interactions, and its size might in theory differ from _currentRender.
-Parameters 23 and 24 are used by soft particles #3878. Note these can be freely reused by different draw calls.
-==================
-*/
-void RB_SetProgramEnvironment( bool isPostProcess ) {
-	float	parm[4];
-	int		pot;
-
-	if ( !glConfig.ARBVertexProgramAvailable ) {
-		return;
-	}
-
-#if 0
-	// screen power of two correction factor, one pixel in so we don't get a bilerp
-	// of an uncopied pixel
-	int	 w = backEnd.viewDef->viewport.x2 - backEnd.viewDef->viewport.x1 + 1;
-	pot = globalImages->currentRenderImage->uploadWidth;
-	if ( w == pot ) {
-		parm[0] = 1.0;
-	} else {
-		parm[0] = (float)(w-1) / pot;
-	}
-
-	int	 h = backEnd.viewDef->viewport.y2 - backEnd.viewDef->viewport.y1 + 1;
-	pot = globalImages->currentRenderImage->uploadHeight;
-	if ( h == pot ) {
-		parm[1] = 1.0;
-	} else {
-		parm[1] = (float)(h-1) / pot;
-	}
-
-	parm[2] = 0;
-	parm[3] = 1;
-	qglProgramEnvParameter4fvARB( GL_VERTEX_PROGRAM_ARB, 0, parm );
-#else
-	// screen power of two correction factor, assuming the copy to _currentRender
-	// also copied an extra row and column for the bilerp
-	int	 w = backEnd.viewDef->viewport.x2 - backEnd.viewDef->viewport.x1 + 1;
-	pot = globalImages->currentRenderImage->uploadWidth;
-	parm[0] = (float)w / pot;
-
-	int	 h = backEnd.viewDef->viewport.y2 - backEnd.viewDef->viewport.y1 + 1;
-	pot = globalImages->currentRenderImage->uploadHeight;
-	parm[1] = (float)h / pot;
-
-	parm[2] = 0;
-	parm[3] = 1;
-	qglProgramEnvParameter4fvARB( GL_VERTEX_PROGRAM_ARB, 0, parm );
-#endif
-
-	qglProgramEnvParameter4fvARB( GL_FRAGMENT_PROGRAM_ARB, 0, parm );
-
-	// window coord to 0.0 to 1.0 conversion
-	parm[0] = 1.0 / w;
-	parm[1] = 1.0 / h;
-	parm[2] = 0;
-	parm[3] = 1;
-	qglProgramEnvParameter4fvARB( GL_FRAGMENT_PROGRAM_ARB, 1, parm );
-
-	// DG: brightness and gamma in shader as program.env[4]
-	if ( r_gammaInShader.GetBool() ) {
-		// program.env[4].xyz are all r_brightness, program.env[4].w is 1.0/r_gamma
-		if ( !isPostProcess ) {
-			parm[0] = parm[1] = parm[2] = r_brightness.GetFloat();
-			parm[3] = 1.0/r_gamma.GetFloat(); // 1.0/gamma so the shader doesn't have to do this calculation
-		} else {
-			// don't apply gamma/brightness in postprocess passes to avoid applying them twice
-			// (setting them to 1.0 makes them no-ops)
-			parm[0] = parm[1] = parm[2] = parm[3] = 1.0f;
-		}
-		qglProgramEnvParameter4fvARB( GL_FRAGMENT_PROGRAM_ARB, PP_GAMMA_BRIGHTNESS, parm );
-	}
-
-	// #3877: Allow shaders to access depth buffer. 
-	// Two useful ratios are packed into this parm: [0] and [1] hold the x,y multipliers you need to map a screen 
-	// coordinate (fragment position) to the depth image: those are simply the reciprocal of the depth 
-	// image size, which has been rounded up to a power of two. Slots [3] and [4] hold the ratio of the depth image
-	// size to the current render image size. These sizes can differ if the game crops the render viewport temporarily 
-	// during post-processing effects. The depth render is smaller during the effect too, but the depth image doesn't 
-	// need to be downsized, whereas the current render image does get downsized when it's captured by the game after 
-	// the skybox render pass. The ratio is needed to map between the two render images.
-	parm[0] = 1.0f / globalImages->currentDepthImage->uploadWidth;
-	parm[1] = 1.0f / globalImages->currentDepthImage->uploadHeight;
-	parm[2] = static_cast<float>(globalImages->currentRenderImage->uploadWidth) / globalImages->currentDepthImage->uploadWidth;
-	parm[3] = static_cast<float>(globalImages->currentRenderImage->uploadHeight) / globalImages->currentDepthImage->uploadHeight;
-	qglProgramEnvParameter4fvARB( GL_FRAGMENT_PROGRAM_ARB, PP_CURDEPTH_RECIPR, parm );
-
-	//
-	// set eye position in global space
-	//
-	parm[0] = backEnd.viewDef->renderView.vieworg[0];
-	parm[1] = backEnd.viewDef->renderView.vieworg[1];
-	parm[2] = backEnd.viewDef->renderView.vieworg[2];
-	parm[3] = 1.0;
-	qglProgramEnvParameter4fvARB( GL_VERTEX_PROGRAM_ARB, 1, parm );
-}
-
-/*
-==================
-RB_SetProgramEnvironmentSpace
-
-Sets variables related to the current space that can be used by all vertex programs
-==================
-*/
-void RB_SetProgramEnvironmentSpace( void ) {
-	if ( !glConfig.ARBVertexProgramAvailable ) {
-		return;
-	}
-
-	const struct viewEntity_s *space = backEnd.currentSpace;
-	float	parm[4];
-
-	// set eye position in local space
-	R_GlobalPointToLocal( space->modelMatrix, backEnd.viewDef->renderView.vieworg, *(idVec3 *)parm );
-	parm[3] = 1.0;
-	qglProgramEnvParameter4fvARB( GL_VERTEX_PROGRAM_ARB, 5, parm );
-
-	// we need the model matrix without it being combined with the view matrix
-	// so we can transform local vectors to global coordinates
-	parm[0] = space->modelMatrix[0];
-	parm[1] = space->modelMatrix[4];
-	parm[2] = space->modelMatrix[8];
-	parm[3] = space->modelMatrix[12];
-	qglProgramEnvParameter4fvARB( GL_VERTEX_PROGRAM_ARB, 6, parm );
-	parm[0] = space->modelMatrix[1];
-	parm[1] = space->modelMatrix[5];
-	parm[2] = space->modelMatrix[9];
-	parm[3] = space->modelMatrix[13];
-	qglProgramEnvParameter4fvARB( GL_VERTEX_PROGRAM_ARB, 7, parm );
-	parm[0] = space->modelMatrix[2];
-	parm[1] = space->modelMatrix[6];
-	parm[2] = space->modelMatrix[10];
-	parm[3] = space->modelMatrix[14];
-	qglProgramEnvParameter4fvARB( GL_VERTEX_PROGRAM_ARB, 8, parm );
-}
-
-/*
-==================
 RB_STD_T_RenderShaderPasses
 
 This is also called for the generated 2D rendering
@@ -755,7 +602,6 @@ void RB_STD_T_RenderShaderPasses( const drawSurf_t *surf ) {
 	if ( surf->space != backEnd.currentSpace ) {
 		qglLoadMatrixf( surf->space->modelViewMatrix );
 		backEnd.currentSpace = surf->space;
-		RB_SetProgramEnvironmentSpace();
 	}
 
 	// change the scissor if needed
@@ -1049,8 +895,6 @@ int RB_STD_DrawShaderPasses( drawSurf_t **drawSurfs, int numDrawSurfs ) {
 
 	GL_SelectTexture( 0 );
 	qglEnableClientState( GL_TEXTURE_COORD_ARRAY );
-
-	RB_SetProgramEnvironment( isPostProcess );
 
 	// we don't use RB_RenderDrawSurfListWithFunction()
 	// because we want to defer the matrix load because many
