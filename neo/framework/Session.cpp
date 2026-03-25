@@ -1942,7 +1942,9 @@ void idSessionLocal::UpdateScreen( bool outOfSequence ) {
 idSessionLocal::Frame
 ===============
 */
+#ifndef NOAUDIO
 extern bool CheckOpenALDeviceAndRecoverIfNeeded();
+#endif
 extern int g_screenshotFormat;
 void idSessionLocal::Frame() {
 	D3P_ScopedCPUSample(Session_Frame);
@@ -1951,10 +1953,12 @@ void idSessionLocal::Frame() {
 		soundSystem->AsyncUpdateWrite( Sys_Milliseconds() );
 	}
 
+#ifndef NOAUDIO
 	// DG: periodically check if sound device is still there and try to reset it if not
 	//     (calling this from idSoundSystem::AsyncUpdate(), which runs in a separate thread
 	//      by default, causes a deadlock when calling idCommon->Warning())
 	CheckOpenALDeviceAndRecoverIfNeeded();
+#endif
 
 	// Editors that completely take over the game
 	if ( com_editorActive && ( com_editors & ( EDITOR_RADIANT | EDITOR_GUI ) ) ) {

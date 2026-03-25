@@ -24,6 +24,7 @@ CURL_LIBDIR   := /usr/lib
 
 # ---- Feature toggles ----
 NOCURL ?= 0
+NOAUDIO ?= 1
 # ---- Defines ----
 DEFINES := -DD3_ARCH=\"x86\" -DD3_SIZEOFPTR=4 -DD3_OSTYPE=\"linux\" -DD3_IS_BIG_ENDIAN=0 \
            -DIMGUI_DISABLE \
@@ -38,10 +39,17 @@ ifneq ($(NOCURL),0)
   DEFINES += -UID_ENABLE_CURL
 endif
 
+ifneq ($(NOAUDIO),0)
+  DEFINES += -DNOAUDIO
+endif
+
 GAME_INCDIR := $(SRCDIR)/game
 
 # ---- Includes ----
-INCLUDES := -I$(SRCDIR) -I$(SDL2_INCDIR) -I$(OPENAL_INCDIR) -I$(GAME_INCDIR)
+INCLUDES := -I$(SRCDIR) -I$(SDL2_INCDIR) -I$(GAME_INCDIR)
+ifeq ($(NOAUDIO),0)
+  INCLUDES += -I$(OPENAL_INCDIR)
+endif
 
 # ---- Compiler flags (matched to working CMake build) ----
 COMMON := $(ARCH) -pipe -Wall -march=pentium3 \
@@ -60,7 +68,10 @@ CXXFLAGS := $(COMMON) $(OPT) $(INCLUDES) $(DEFINES) -std=gnu++11 \
             -Wno-class-memaccess -Wno-c++20-compat
 
 LDFLAGS := $(ARCH)
-LIBS    := -L$(SDL2_LIBDIR) -lSDL2 -L$(OPENAL_LIBDIR) -lopenal -lpthread
+LIBS    := -L$(SDL2_LIBDIR) -lSDL2 -lpthread
+ifeq ($(NOAUDIO),0)
+  LIBS += -L$(OPENAL_LIBDIR) -lopenal
+endif
 ifeq ($(NOCURL),0)
   LIBS += -L$(CURL_LIBDIR) -lcurl
 endif
@@ -168,6 +179,10 @@ SRC_AAS := \
 	tools/compilers/aas/AASFile_sample.cpp \
 	tools/compilers/aas/AASFileManager.cpp
 
+ifneq ($(NOAUDIO),0)
+SRC_SOUND := sound/snd_stub.cpp
+SRC_SOUND_C :=
+else
 SRC_SOUND := \
 	sound/snd_cache.cpp \
 	sound/snd_decoder.cpp \
@@ -177,8 +192,8 @@ SRC_SOUND := \
 	sound/snd_system.cpp \
 	sound/snd_wavefile.cpp \
 	sound/snd_world.cpp
-
 SRC_SOUND_C := sound/stbvorbis_impl.c
+endif
 
 SRC_UI := \
 	ui/BindWindow.cpp \
