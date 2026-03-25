@@ -1467,11 +1467,6 @@ typedef struct {
 	int		totalIndexes;
 } optimizedShadow_t;
 
-optimizedShadow_t SuperOptimizeOccluders( idVec4 *verts, glIndex_t *indexes, int numIndexes,
-										 idPlane projectionPlane, idVec3 projectionOrigin );
-
-void CleanupOptimizedShadowTris( srfTriangles_t *tri );
-
 /*
 ============================================================
 

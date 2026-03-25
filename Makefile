@@ -167,44 +167,11 @@ SRC_CM := \
 	cm/CollisionModel_trace.cpp \
 	cm/CollisionModel_translate.cpp
 
-SRC_DMAP := \
-	tools/compilers/dmap/dmap.cpp \
-	tools/compilers/dmap/facebsp.cpp \
-	tools/compilers/dmap/gldraw.cpp \
-	tools/compilers/dmap/glfile.cpp \
-	tools/compilers/dmap/leakfile.cpp \
-	tools/compilers/dmap/map.cpp \
-	tools/compilers/dmap/optimize.cpp \
-	tools/compilers/dmap/output.cpp \
-	tools/compilers/dmap/portals.cpp \
-	tools/compilers/dmap/shadowopt3.cpp \
-	tools/compilers/dmap/tritjunction.cpp \
-	tools/compilers/dmap/tritools.cpp \
-	tools/compilers/dmap/ubrush.cpp \
-	tools/compilers/dmap/usurface.cpp
-
 SRC_AAS := \
-	tools/compilers/aas/AASBuild.cpp \
-	tools/compilers/aas/AASBuild_file.cpp \
-	tools/compilers/aas/AASBuild_gravity.cpp \
-	tools/compilers/aas/AASBuild_ledge.cpp \
-	tools/compilers/aas/AASBuild_merge.cpp \
-	tools/compilers/aas/AASCluster.cpp \
 	tools/compilers/aas/AASFile.cpp \
 	tools/compilers/aas/AASFile_optimize.cpp \
 	tools/compilers/aas/AASFile_sample.cpp \
-	tools/compilers/aas/AASReach.cpp \
-	tools/compilers/aas/AASFileManager.cpp \
-	tools/compilers/aas/Brush.cpp \
-	tools/compilers/aas/BrushBSP.cpp
-
-SRC_ROQ := \
-	tools/compilers/roqvq/NSBitmapImageRep.cpp \
-	tools/compilers/roqvq/codec.cpp \
-	tools/compilers/roqvq/roq.cpp \
-	tools/compilers/roqvq/roqParam.cpp
-
-SRC_RENDERBUMP := tools/compilers/renderbump/renderbump.cpp
+	tools/compilers/aas/AASFileManager.cpp
 
 SRC_SOUND := \
 	sound/snd_cache.cpp \
@@ -379,9 +346,8 @@ SRC_TOOLS := \
 
 # ---- Assemble (prepend SRCDIR) ----
 
-SRC_ENGINE_CPP := $(SRC_RENDERER) $(SRC_FRAMEWORK) $(SRC_CM) $(SRC_DMAP) \
-                  $(SRC_AAS) $(SRC_ROQ) $(SRC_RENDERBUMP) $(SRC_SOUND) \
-                  $(SRC_UI) $(SRC_SYS) $(SRC_TOOLS)
+SRC_ENGINE_CPP := $(SRC_RENDERER) $(SRC_FRAMEWORK) $(SRC_CM) $(SRC_AAS) \
+                  $(SRC_SOUND) $(SRC_UI) $(SRC_SYS) $(SRC_TOOLS)
 
 SRC_ENGINE_C := $(SRC_RENDERER_C) $(SRC_FRAMEWORK_C) $(SRC_SOUND_C)
 
