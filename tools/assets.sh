@@ -21,6 +21,12 @@ cmd_extract() {
     # fix permissions from pk4 extraction
     chmod -R u+w "${MODDIR}"
 
+    echo "=== Converting .proc files to binary ==="
+    python3 "${SCRIPTDIR}/proc2bin.py" "${MODDIR}/maps"
+
+    echo "=== Converting .cm files to binary ==="
+    python3 "${SCRIPTDIR}/cm2bin.py" "${MODDIR}/maps"
+
     echo "=== Done ==="
 }
 

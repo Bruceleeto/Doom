@@ -489,6 +489,7 @@ private:			// CollisionMap_files.cpp
 	void			ParsePolygons( idLexer *src, cm_model_t *model );
 	void			ParseBrushes( idLexer *src, cm_model_t *model );
 	bool			ParseCollisionModel( idLexer *src );
+	bool			LoadBinaryCollisionModelFile( const char *name, unsigned int mapFileCRC );
 	bool			LoadCollisionModelFile( const char *name, unsigned int mapFileCRC );
 
 private:			// CollisionMap_debug

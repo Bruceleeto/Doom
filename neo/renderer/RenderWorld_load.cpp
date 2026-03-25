@@ -471,6 +471,173 @@ void idRenderWorldLocal::FreeDefs() {
 
 /*
 =================
+idRenderWorldLocal::LoadBinaryProc
+
+Load a binary .proc file (DCPROC01 format).
+Returns true if successful.
+=================
+*/
+bool idRenderWorldLocal::LoadBinaryProc( const char *filename ) {
+	idFile *f = fileSystem->OpenFileRead( filename );
+	if ( !f ) {
+		return false;
+	}
+
+	// check magic
+	char magic[8];
+	if ( f->Read( magic, 8 ) != 8 || memcmp( magic, "DCPROC01", 8 ) != 0 ) {
+		fileSystem->CloseFile( f );
+		return false;
+	}
+
+	unsigned int numModels, numPortalAreas_bin, numPortals, numNodes_bin;
+	f->Read( &numModels, sizeof(numModels) );
+	f->Read( &numPortalAreas_bin, sizeof(numPortalAreas_bin) );
+	f->Read( &numPortals, sizeof(numPortals) );
+	f->Read( &numNodes_bin, sizeof(numNodes_bin) );
+
+	common->Printf( "Binary proc: %d models, %d areas, %d portals, %d nodes\n",
+		numModels, numPortalAreas_bin, numPortals, numNodes_bin );
+
+	// load models
+	for ( unsigned int m = 0; m < numModels; m++ ) {
+		unsigned short nameLen;
+		f->Read( &nameLen, sizeof(nameLen) );
+		char nameBuf[1024];
+		f->Read( nameBuf, nameLen );
+
+		idRenderModel *model = renderModelManager->AllocModel();
+		model->InitEmpty( nameBuf );
+
+		unsigned int numSurfaces;
+		f->Read( &numSurfaces, sizeof(numSurfaces) );
+
+		for ( unsigned int s = 0; s < numSurfaces; s++ ) {
+			unsigned short matLen;
+			f->Read( &matLen, sizeof(matLen) );
+			char matBuf[1024];
+			f->Read( matBuf, matLen );
+
+			modelSurface_t surf;
+			surf.shader = declManager->FindMaterial( matBuf );
+
+			srfTriangles_t *tri = R_AllocStaticTriSurf();
+			surf.geometry = tri;
+
+			unsigned int nv, ni;
+			f->Read( &nv, sizeof(nv) );
+			f->Read( &ni, sizeof(ni) );
+			tri->numVerts = nv;
+			tri->numIndexes = ni;
+
+			// read vertex data (8 floats per vert: xyz, st, normal)
+			R_AllocStaticTriSurfVerts( tri, tri->numVerts );
+			for ( int j = 0; j < tri->numVerts; j++ ) {
+				float vec[8];
+				f->Read( vec, sizeof(vec) );
+				tri->verts[j].xyz[0] = vec[0];
+				tri->verts[j].xyz[1] = vec[1];
+				tri->verts[j].xyz[2] = vec[2];
+				tri->verts[j].st[0] = vec[3];
+				tri->verts[j].st[1] = vec[4];
+				tri->verts[j].normal[0] = vec[5];
+				tri->verts[j].normal[1] = vec[6];
+				tri->verts[j].normal[2] = vec[7];
+			}
+
+			// read index data
+			R_AllocStaticTriSurfIndexes( tri, tri->numIndexes );
+			for ( int j = 0; j < tri->numIndexes; j++ ) {
+				unsigned int idx;
+				f->Read( &idx, sizeof(idx) );
+				tri->indexes[j] = idx;
+			}
+
+			model->AddSurface( surf );
+		}
+
+		model->FinishSurfaces();
+		renderModelManager->AddModel( model );
+		localModels.Append( model );
+	}
+
+	// load portals
+	if ( numPortalAreas_bin && numPortals ) {
+		numPortalAreas = numPortalAreas_bin;
+		portalAreas = (portalArea_t *)R_ClearedStaticAlloc( numPortalAreas * sizeof( portalAreas[0] ) );
+		areaScreenRect = (idScreenRect *) R_ClearedStaticAlloc( numPortalAreas * sizeof( idScreenRect ) );
+
+		SetupAreaRefs();
+
+		numInterAreaPortals = numPortals;
+		doublePortals = (doublePortal_t *)R_ClearedStaticAlloc( numPortals * sizeof( doublePortals[0] ) );
+
+		for ( unsigned int p = 0; p < numPortals; p++ ) {
+			unsigned int np, a1, a2;
+			f->Read( &np, sizeof(np) );
+			f->Read( &a1, sizeof(a1) );
+			f->Read( &a2, sizeof(a2) );
+
+			idWinding *w = new idWinding( np );
+			w->SetNumPoints( np );
+			for ( unsigned int j = 0; j < np; j++ ) {
+				float pt[3];
+				f->Read( pt, sizeof(pt) );
+				(*w)[j][0] = pt[0];
+				(*w)[j][1] = pt[1];
+				(*w)[j][2] = pt[2];
+				(*w)[j][3] = 0;
+				(*w)[j][4] = 0;
+			}
+
+			// add portal to a1
+			portal_t *pp = (portal_t *)R_ClearedStaticAlloc( sizeof( *pp ) );
+			pp->intoArea = a2;
+			pp->doublePortal = &doublePortals[p];
+			pp->w = w;
+			pp->w->GetPlane( pp->plane );
+			pp->next = portalAreas[a1].portals;
+			portalAreas[a1].portals = pp;
+			doublePortals[p].portals[0] = pp;
+
+			// reverse for a2
+			pp = (portal_t *)R_ClearedStaticAlloc( sizeof( *pp ) );
+			pp->intoArea = a1;
+			pp->doublePortal = &doublePortals[p];
+			pp->w = w->Reverse();
+			pp->w->GetPlane( pp->plane );
+			pp->next = portalAreas[a2].portals;
+			portalAreas[a2].portals = pp;
+			doublePortals[p].portals[1] = pp;
+		}
+	}
+
+	// load BSP nodes
+	if ( numNodes_bin ) {
+		areaNodes = (areaNode_t *)R_ClearedStaticAlloc( numNodes_bin * sizeof( areaNodes[0] ) );
+		numAreaNodes = numNodes_bin;
+		for ( unsigned int n = 0; n < numNodes_bin; n++ ) {
+			float plane[4];
+			f->Read( plane, sizeof(plane) );
+			areaNodes[n].plane[0] = plane[0];
+			areaNodes[n].plane[1] = plane[1];
+			areaNodes[n].plane[2] = plane[2];
+			areaNodes[n].plane[3] = plane[3];
+
+			int c0, c1;
+			f->Read( &c0, sizeof(c0) );
+			f->Read( &c1, sizeof(c1) );
+			areaNodes[n].children[0] = c0;
+			areaNodes[n].children[1] = c1;
+		}
+	}
+
+	fileSystem->CloseFile( f );
+	return true;
+}
+
+/*
+=================
 idRenderWorldLocal::InitFromMap
 
 A NULL or empty name will make a world without a map model, which
@@ -518,16 +685,30 @@ bool idRenderWorldLocal::InitFromMap( const char *name ) {
 
 	FreeWorld();
 
+	mapName = name;
+	mapTimeStamp = currentTimeStamp;
+
+	// try binary proc first
+	if ( LoadBinaryProc( filename ) ) {
+		common->Printf( "Loaded binary %s\n", filename.c_str() );
+
+		if ( !numPortalAreas ) {
+			ClearWorld();
+		}
+
+		CommonChildrenArea_r( &areaNodes[0] );
+		AddWorldModelEntities();
+		ClearPortalStates();
+
+		return true;
+	}
+
 	src = new idLexer( filename, LEXFL_NOSTRINGCONCAT | LEXFL_NODOLLARPRECOMPILE );
 	if ( !src->IsLoaded() ) {
 		common->Printf( "idRenderWorldLocal::InitFromMap: %s not found\n", filename.c_str() );
 		ClearWorld();
 		return false;
 	}
-
-
-	mapName = name;
-	mapTimeStamp = currentTimeStamp;
 
 	// if we are writing a demo, archive the load command
 	if ( session->writeDemo ) {

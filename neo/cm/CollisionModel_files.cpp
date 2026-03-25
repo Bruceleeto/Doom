@@ -550,10 +550,231 @@ bool idCollisionModelManagerLocal::ParseCollisionModel( idLexer *src ) {
 
 /*
 ================
+idCollisionModelManagerLocal::LoadBinaryCollisionModelFile
+
+Load a binary .cm file (DCCM0001 format).
+Returns true if successful.
+================
+*/
+bool idCollisionModelManagerLocal::LoadBinaryCollisionModelFile( const char *name, unsigned int mapFileCRC ) {
+	idStr fileName = name;
+	fileName.SetFileExtension( CM_FILE_EXT );
+
+	idFile *f = fileSystem->OpenFileRead( fileName );
+	if ( !f ) {
+		return false;
+	}
+
+	// check magic
+	char magic[8];
+	if ( f->Read( magic, 8 ) != 8 || memcmp( magic, "DCCM0001", 8 ) != 0 ) {
+		fileSystem->CloseFile( f );
+		return false;
+	}
+
+	unsigned int fileCRC, fileNumModels;
+	f->Read( &fileCRC, sizeof(fileCRC) );
+	f->Read( &fileNumModels, sizeof(fileNumModels) );
+
+	if ( mapFileCRC && fileCRC != mapFileCRC ) {
+		common->Printf( "%s is out of date\n", fileName.c_str() );
+		fileSystem->CloseFile( f );
+		return false;
+	}
+
+	common->Printf( "Binary cm: %d collision models\n", fileNumModels );
+
+	for ( unsigned int m = 0; m < fileNumModels; m++ ) {
+		if ( numModels >= maxModels ) {
+			common->Error( "LoadBinaryCollisionModelFile: no free slots" );
+			fileSystem->CloseFile( f );
+			return false;
+		}
+
+		cm_model_t *model = AllocModel();
+		models[numModels] = model;
+		numModels++;
+
+		// name
+		unsigned short nameLen;
+		f->Read( &nameLen, sizeof(nameLen) );
+		char nameBuf[1024];
+		f->Read( nameBuf, nameLen );
+		model->name = nameBuf;
+
+		unsigned int nv, ne, np, nb;
+		f->Read( &nv, sizeof(nv) );
+		f->Read( &ne, sizeof(ne) );
+		f->Read( &np, sizeof(np) );
+		f->Read( &nb, sizeof(nb) );
+
+		// vertices
+		model->numVertices = nv;
+		model->maxVertices = nv;
+		model->vertices = (cm_vertex_t *) Mem_Alloc( nv * sizeof( cm_vertex_t ) );
+		for ( unsigned int i = 0; i < nv; i++ ) {
+			float xyz[3];
+			f->Read( xyz, sizeof(xyz) );
+			model->vertices[i].p[0] = xyz[0];
+			model->vertices[i].p[1] = xyz[1];
+			model->vertices[i].p[2] = xyz[2];
+			model->vertices[i].side = 0;
+			model->vertices[i].sideSet = 0;
+			model->vertices[i].checkcount = 0;
+		}
+
+		// edges
+		model->numEdges = ne;
+		model->maxEdges = ne;
+		model->edges = (cm_edge_t *) Mem_Alloc( ne * sizeof( cm_edge_t ) );
+		for ( unsigned int i = 0; i < ne; i++ ) {
+			int v0, v1;
+			unsigned short internal, numUsers;
+			f->Read( &v0, sizeof(v0) );
+			f->Read( &v1, sizeof(v1) );
+			f->Read( &internal, sizeof(internal) );
+			f->Read( &numUsers, sizeof(numUsers) );
+			model->edges[i].vertexNum[0] = v0;
+			model->edges[i].vertexNum[1] = v1;
+			model->edges[i].internal = internal;
+			model->edges[i].numUsers = numUsers;
+			model->edges[i].normal = vec3_origin;
+			model->edges[i].side = 0;
+			model->edges[i].sideSet = 0;
+			model->edges[i].checkcount = 0;
+			model->numInternalEdges += internal;
+		}
+
+		// nodes (pre-order flattened BSP)
+		unsigned int numNodes;
+		f->Read( &numNodes, sizeof(numNodes) );
+
+		struct nodeData_t { int planeType; float planeDist; } *nodeData;
+		nodeData = (nodeData_t *) Mem_Alloc( numNodes * sizeof( nodeData_t ) );
+		for ( unsigned int i = 0; i < numNodes; i++ ) {
+			f->Read( &nodeData[i].planeType, sizeof(int) );
+			f->Read( &nodeData[i].planeDist, sizeof(float) );
+		}
+
+		// rebuild BSP tree from pre-order traversal
+		int nodeIdx = 0;
+		struct BuildNode {
+			static cm_node_t *Build( idCollisionModelManagerLocal *mgr, cm_model_t *mdl,
+									 nodeData_t *data, int &idx, int count, cm_node_t *parent ) {
+				if ( idx >= count ) return NULL;
+				mdl->numNodes++;
+				cm_node_t *node = mgr->AllocNode( mdl, mdl->numNodes < NODE_BLOCK_SIZE_SMALL ?
+					NODE_BLOCK_SIZE_SMALL : NODE_BLOCK_SIZE_LARGE );
+				node->brushes = NULL;
+				node->polygons = NULL;
+				node->parent = parent;
+				node->planeType = data[idx].planeType;
+				node->planeDist = data[idx].planeDist;
+				idx++;
+				if ( node->planeType != -1 ) {
+					node->children[0] = Build( mgr, mdl, data, idx, count, node );
+					node->children[1] = Build( mgr, mdl, data, idx, count, node );
+				} else {
+					node->children[0] = NULL;
+					node->children[1] = NULL;
+				}
+				return node;
+			}
+		};
+		model->node = BuildNode::Build( this, model, nodeData, nodeIdx, numNodes, NULL );
+		Mem_Free( nodeData );
+
+		// polygons
+		for ( unsigned int i = 0; i < np; i++ ) {
+			unsigned int numEdges;
+			f->Read( &numEdges, sizeof(numEdges) );
+
+			cm_polygon_t *p = AllocPolygon( model, numEdges );
+			p->numEdges = numEdges;
+
+			for ( unsigned int j = 0; j < numEdges; j++ ) {
+				int edgeIdx;
+				f->Read( &edgeIdx, sizeof(edgeIdx) );
+				p->edges[j] = edgeIdx;
+			}
+
+			float normal[3], dist;
+			f->Read( normal, sizeof(normal) );
+			f->Read( &dist, sizeof(float) );
+			p->plane.SetNormal( idVec3( normal[0], normal[1], normal[2] ) );
+			p->plane.SetDist( dist );
+
+			float minb[3], maxb[3];
+			f->Read( minb, sizeof(minb) );
+			f->Read( maxb, sizeof(maxb) );
+			p->bounds[0] = idVec3( minb[0], minb[1], minb[2] );
+			p->bounds[1] = idVec3( maxb[0], maxb[1], maxb[2] );
+
+			unsigned short matLen;
+			f->Read( &matLen, sizeof(matLen) );
+			char matBuf[1024];
+			f->Read( matBuf, matLen );
+			p->material = declManager->FindMaterial( matBuf );
+			p->contents = p->material->GetContentFlags();
+			p->checkcount = 0;
+
+			R_FilterPolygonIntoTree( model, model->node, NULL, p );
+		}
+
+		// brushes
+		for ( unsigned int i = 0; i < nb; i++ ) {
+			unsigned int numPlanes;
+			f->Read( &numPlanes, sizeof(numPlanes) );
+
+			cm_brush_t *b = AllocBrush( model, numPlanes );
+			b->numPlanes = numPlanes;
+
+			for ( unsigned int j = 0; j < numPlanes; j++ ) {
+				float plane[4];
+				f->Read( plane, sizeof(plane) );
+				b->planes[j].SetNormal( idVec3( plane[0], plane[1], plane[2] ) );
+				b->planes[j].SetDist( plane[3] );
+			}
+
+			float minb[3], maxb[3];
+			f->Read( minb, sizeof(minb) );
+			f->Read( maxb, sizeof(maxb) );
+			b->bounds[0] = idVec3( minb[0], minb[1], minb[2] );
+			b->bounds[1] = idVec3( maxb[0], maxb[1], maxb[2] );
+
+			unsigned short contLen;
+			f->Read( &contLen, sizeof(contLen) );
+			char contBuf[1024];
+			f->Read( contBuf, contLen );
+			b->contents = ContentsFromString( contBuf );
+			b->checkcount = 0;
+			b->primitiveNum = 0;
+
+			R_FilterBrushIntoTree( model, model->node, NULL, b );
+		}
+
+		// finalize model
+		checkCount++;
+		CalculateEdgeNormals( model, model->node );
+		CM_GetNodeBounds( &model->bounds, model->node );
+		model->contents = CM_GetNodeContents( model->node );
+	}
+
+	fileSystem->CloseFile( f );
+	return true;
+}
+
+/*
+================
 idCollisionModelManagerLocal::LoadCollisionModelFile
 ================
 */
 bool idCollisionModelManagerLocal::LoadCollisionModelFile( const char *name, unsigned int mapFileCRC ) {
+	// try binary format first
+	if ( LoadBinaryCollisionModelFile( name, mapFileCRC ) ) {
+		return true;
+	}
+
 	idStr fileName;
 	idToken token;
 	idLexer *src;

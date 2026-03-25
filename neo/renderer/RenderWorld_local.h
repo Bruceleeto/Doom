@@ -178,6 +178,7 @@ public:
 	//-----------------------
 	// RenderWorld_load.cpp
 
+	bool					LoadBinaryProc( const char *filename );
 	idRenderModel *			ParseModel( idLexer *src );
 	idRenderModel *			ParseShadowModel( idLexer *src );
 	void					SetupAreaRefs();
