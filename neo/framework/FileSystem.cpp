@@ -841,26 +841,29 @@ search paths.
 */
 const char *idFileSystemLocal::OSPathToRelativePath( const char *OSPath ) {
 	static char relativePath[MAX_STRING_CHARS];
-	const char *s, *base;
+	const char *s, *base = NULL;
 
 	// skip a drive letter?
 
-	// search for anything with "base" in it
+	// search for anything with BASE_GAMEDIR in it
 	// Ase files from max may have the form of:
 	// "//Purgatory/purgatory/doom/base/models/mapobjects/bitch/hologirl.tga"
 	// which won't match any of our drive letter based search paths
 	// look for the first complete directory name
-	base = strstr( OSPath, BASE_GAMEDIR );
-	while ( base ) {
-		char c1 = '\0', c2;
-		if ( base > OSPath ) {
-			c1 = *(base - 1);
+	static const char *baseDirs[] = { BASE_GAMEDIR, "base", NULL };
+	for ( const char **bd = baseDirs; *bd != NULL && base == NULL; bd++ ) {
+		base = strstr( OSPath, *bd );
+		while ( base ) {
+			char c1 = '\0', c2;
+			if ( base > OSPath ) {
+				c1 = *(base - 1);
+			}
+			c2 = *( base + strlen( *bd ) );
+			if ( ( c1 == '/' || c1 == '\\' ) && ( c2 == '/' || c2 == '\\' ) ) {
+				break;
+			}
+			base = strstr( base + 1, *bd );
 		}
-		c2 = *( base + strlen( BASE_GAMEDIR ) );
-		if ( ( c1 == '/' || c1 == '\\' ) && ( c2 == '/' || c2 == '\\' ) ) {
-			break;
-		}
-		base = strstr( base + 1, BASE_GAMEDIR );
 	}
 
 	// fs_game and fs_game_base support - look for first complete name with a mod path

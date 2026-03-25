@@ -364,7 +364,7 @@ DEPS    := $(OBJ_ALL:.o=.d)
 # Rules
 # ============================================================================
 
-.PHONY: all clean
+.PHONY: all clean assets assets-clean
 
 all: $(BINARY)
 
@@ -410,6 +410,12 @@ $(BUILDDIR)/sound/stbvorbis_impl.o: $(SRCDIR)/sound/stbvorbis_impl.c
 	@mkdir -p $(dir $@)
 	@echo "  CC    $< [O2]"
 	@$(CC) $(CFLAGS) -O2 -MMD -MP -c -o $@ $<
+
+assets:
+	@./tools/assets.sh extract
+
+assets-clean:
+	@./tools/assets.sh clean
 
 clean:
 	rm -rf $(BUILDDIR) $(BINARY) $(BINARY).map
