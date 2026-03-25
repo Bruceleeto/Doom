@@ -63,25 +63,15 @@ RB_ARB2_DrawInteraction
 ==================
 */
 void	RB_ARB2_DrawInteraction( const drawInteraction_t *din ) {
-	// load all the vertex program parameters
+	// load vertex program parameters
 	qglProgramEnvParameter4fvARB( GL_VERTEX_PROGRAM_ARB, PP_LIGHT_ORIGIN, din->localLightOrigin.ToFloatPtr() );
 	qglProgramEnvParameter4fvARB( GL_VERTEX_PROGRAM_ARB, PP_VIEW_ORIGIN, din->localViewOrigin.ToFloatPtr() );
 	qglProgramEnvParameter4fvARB( GL_VERTEX_PROGRAM_ARB, PP_LIGHT_PROJECT_S, din->lightProjection[0].ToFloatPtr() );
 	qglProgramEnvParameter4fvARB( GL_VERTEX_PROGRAM_ARB, PP_LIGHT_PROJECT_T, din->lightProjection[1].ToFloatPtr() );
 	qglProgramEnvParameter4fvARB( GL_VERTEX_PROGRAM_ARB, PP_LIGHT_PROJECT_Q, din->lightProjection[2].ToFloatPtr() );
 	qglProgramEnvParameter4fvARB( GL_VERTEX_PROGRAM_ARB, PP_LIGHT_FALLOFF_S, din->lightProjection[3].ToFloatPtr() );
-	qglProgramEnvParameter4fvARB( GL_VERTEX_PROGRAM_ARB, PP_BUMP_MATRIX_S, din->bumpMatrix[0].ToFloatPtr() );
-	qglProgramEnvParameter4fvARB( GL_VERTEX_PROGRAM_ARB, PP_BUMP_MATRIX_T, din->bumpMatrix[1].ToFloatPtr() );
 	qglProgramEnvParameter4fvARB( GL_VERTEX_PROGRAM_ARB, PP_DIFFUSE_MATRIX_S, din->diffuseMatrix[0].ToFloatPtr() );
 	qglProgramEnvParameter4fvARB( GL_VERTEX_PROGRAM_ARB, PP_DIFFUSE_MATRIX_T, din->diffuseMatrix[1].ToFloatPtr() );
-	qglProgramEnvParameter4fvARB( GL_VERTEX_PROGRAM_ARB, PP_SPECULAR_MATRIX_S, din->specularMatrix[0].ToFloatPtr() );
-	qglProgramEnvParameter4fvARB( GL_VERTEX_PROGRAM_ARB, PP_SPECULAR_MATRIX_T, din->specularMatrix[1].ToFloatPtr() );
-
-	// testing fragment based normal mapping
-	if ( r_testARBProgram.GetBool() ) {
-		qglProgramEnvParameter4fvARB( GL_FRAGMENT_PROGRAM_ARB, 2, din->localLightOrigin.ToFloatPtr() );
-		qglProgramEnvParameter4fvARB( GL_FRAGMENT_PROGRAM_ARB, 3, din->localViewOrigin.ToFloatPtr() );
-	}
 
 	static const float zero[4] = { 0, 0, 0, 0 };
 	static const float one[4] = { 1, 1, 1, 1 };
@@ -102,42 +92,37 @@ void	RB_ARB2_DrawInteraction( const drawInteraction_t *din ) {
 		break;
 	}
 
-	// set the constant colors
+	// diffuse color only — specular removed
 	qglProgramEnvParameter4fvARB( GL_FRAGMENT_PROGRAM_ARB, 0, din->diffuseColor.ToFloatPtr() );
-	qglProgramEnvParameter4fvARB( GL_FRAGMENT_PROGRAM_ARB, 1, din->specularColor.ToFloatPtr() );
+	qglProgramEnvParameter4fvARB( GL_FRAGMENT_PROGRAM_ARB, 1, zero );
 
-	// DG: brightness and gamma in shader as program.env[4]
 	if ( r_gammaInShader.GetBool() ) {
-		// program.env[4].xyz are all r_brightness, program.env[4].w is 1.0/r_gamma
 		float parm[4];
 		parm[0] = parm[1] = parm[2] = r_brightness.GetFloat();
-		parm[3] = 1.0/r_gamma.GetFloat(); // 1.0/gamma so the shader doesn't have to do this calculation
+		parm[3] = 1.0/r_gamma.GetFloat();
 		qglProgramEnvParameter4fvARB( GL_FRAGMENT_PROGRAM_ARB, PP_GAMMA_BRIGHTNESS, parm );
 	}
 
-	// set the textures
-
-	// texture 1 will be the per-surface bump map
+	// texture 1 — flat normal (bump removed)
 	GL_SelectTextureNoClient( 1 );
 	din->bumpImage->Bind();
 
-	// texture 2 will be the light falloff texture
+	// texture 2 — light falloff
 	GL_SelectTextureNoClient( 2 );
 	din->lightFalloffImage->Bind();
 
-	// texture 3 will be the light projection texture
+	// texture 3 — light projection
 	GL_SelectTextureNoClient( 3 );
 	din->lightImage->Bind();
 
-	// texture 4 is the per-surface diffuse map
+	// texture 4 — diffuse map
 	GL_SelectTextureNoClient( 4 );
 	din->diffuseImage->Bind();
 
-	// texture 5 is the per-surface specular map
+	// texture 5 — black (specular removed)
 	GL_SelectTextureNoClient( 5 );
-	din->specularImage->Bind();
+	globalImages->blackImage->Bind();
 
-	// draw it
 	RB_DrawElementsWithCounters( din->surf->geo );
 }
 
@@ -183,15 +168,6 @@ void RB_ARB2_CreateDrawInteractions( const drawSurf_t *surf ) {
 		globalImages->normalCubeMapImage->Bind();
 	}
 
-	// texture 6 is the specular lookup table
-	GL_SelectTextureNoClient( 6 );
-	if ( r_testARBProgram.GetBool() ) {
-		globalImages->specular2DTableImage->Bind();	// variable specularity in alpha channel
-	} else {
-		globalImages->specularTableImage->Bind();
-	}
-
-
 	for ( ; surf ; surf=surf->nextOnLight ) {
 		// perform setup here that will not change over multiple interaction passes
 
@@ -216,9 +192,6 @@ void RB_ARB2_CreateDrawInteractions( const drawSurf_t *surf ) {
 	qglDisableClientState( GL_COLOR_ARRAY );
 
 	// disable features
-	GL_SelectTextureNoClient( 6 );
-	globalImages->BindNull();
-
 	GL_SelectTextureNoClient( 5 );
 	globalImages->BindNull();
 

@@ -442,24 +442,19 @@ typedef struct {
 
 	idImage *			lightImage;
 	idImage *			lightFalloffImage;
-	idImage *			bumpImage;
+	idImage *			bumpImage;			// always flatNormalMap (bump removed)
 	idImage *			diffuseImage;
-	idImage *			specularImage;
 
-	idVec4				diffuseColor;	// may have a light color baked into it, will be < tr.backEndRendererMaxLight
-	idVec4				specularColor;	// may have a light color baked into it, will be < tr.backEndRendererMaxLight
-	stageVertexColor_t	vertexColor;	// applies to both diffuse and specular
+	idVec4				diffuseColor;	// may have a light color baked into it
+	stageVertexColor_t	vertexColor;
 
 	int					ambientLight;	// use tr.ambientNormalMap instead of normalization cube map
-	// (not a bool just to avoid an uninitialized memory check of the pad region by valgrind)
 
 	// these are loaded into the vertex program
 	idVec4				localLightOrigin;
 	idVec4				localViewOrigin;
 	idVec4				lightProjection[4];	// in local coordinates, possibly with a texture matrix baked in
-	idVec4				bumpMatrix[2];
 	idVec4				diffuseMatrix[2];
-	idVec4				specularMatrix[2];
 } drawInteraction_t;
 
 

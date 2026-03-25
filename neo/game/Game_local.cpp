@@ -1184,9 +1184,6 @@ idGameLocal::MapPopulate
 */
 void idGameLocal::MapPopulate( void ) {
 
-	if ( isMultiplayer ) {
-		cvarSystem->SetCVarBool( "r_skipSpecular", false );
-	}
 	// parse the key/value pairs and spawn entities
 	SpawnMapEntities();
 

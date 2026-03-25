@@ -656,28 +656,14 @@ RB_SubmittInteraction
 =================
 */
 static void RB_SubmittInteraction( drawInteraction_t *din, void (*DrawInteraction)(const drawInteraction_t *) ) {
-	if ( !din->bumpImage ) {
-		return;
-	}
-
 	if ( !din->diffuseImage || r_skipDiffuse.GetBool() ) {
 		din->diffuseImage = globalImages->blackImage;
 	}
-	if ( !din->specularImage || r_skipSpecular.GetBool() || din->ambientLight ) {
-		din->specularImage = globalImages->blackImage;
-	}
-	if ( !din->bumpImage || r_skipBump.GetBool() ) {
-		din->bumpImage = globalImages->flatNormalMap;
-	}
+	din->bumpImage = globalImages->flatNormalMap;
 
-	// if we wouldn't draw anything, don't call the Draw function
-	if (
-		( ( din->diffuseColor[0] > 0 ||
+	if ( ( din->diffuseColor[0] > 0 ||
 		din->diffuseColor[1] > 0 ||
-		din->diffuseColor[2] > 0 ) && din->diffuseImage != globalImages->blackImage )
-		|| ( ( din->specularColor[0] > 0 ||
-		din->specularColor[1] > 0 ||
-		din->specularColor[2] > 0 ) && din->specularImage != globalImages->blackImage ) ) {
+		din->diffuseColor[2] > 0 ) && din->diffuseImage != globalImages->blackImage ) {
 		DrawInteraction( din );
 	}
 }
@@ -699,21 +685,9 @@ void RB_CreateSingleDrawInteractions( const drawSurf_t *surf, void (*DrawInterac
 	drawInteraction_t	inter;
 	inter.diffuseMatrix[0].Zero();
 	inter.diffuseMatrix[1].Zero();
-	inter.specularMatrix[0].Zero();
-	inter.specularMatrix[1].Zero();
 
 	if ( r_skipInteractions.GetBool() || !surf->geo || !surf->geo->ambientCache ) {
 		return;
-	}
-
-	// DG: support lights nospecular parm, if desired by mapper and/or user
-	int noSpecVar = r_supportNoSpecular.GetInteger();
-	bool allowNoSpecular = (noSpecVar == 1);
-	if ( noSpecVar == -1 ) {
-		// r_supportNoSpecular -1 only allows nospecular if the map enables
-		// it in the worldspawn by setting "allow_nospecular" "1"
-		// the value of that is saved in tr.allowNoSpecular by idRenderSystemLocal::EndLevelLoad()
-		allowNoSpecular = tr.allowNoSpecular;
 	}
 
 	// change the matrix and light projection vectors if needed
@@ -772,11 +746,9 @@ void RB_CreateSingleDrawInteractions( const drawSurf_t *surf, void (*DrawInterac
 			RB_BakeTextureMatrixIntoTexgen( reinterpret_cast<class idPlane *>(inter.lightProjection), backEnd.lightTextureMatrix );
 		}
 
-		inter.bumpImage = NULL;
-		inter.specularImage = NULL;
+		inter.bumpImage = globalImages->flatNormalMap;
 		inter.diffuseImage = NULL;
 		inter.diffuseColor[0] = inter.diffuseColor[1] = inter.diffuseColor[2] = inter.diffuseColor[3] = 0;
-		inter.specularColor[0] = inter.specularColor[1] = inter.specularColor[2] = inter.specularColor[3] = 0;
 
 		float lightColor[4];
 
@@ -797,15 +769,11 @@ void RB_CreateSingleDrawInteractions( const drawSurf_t *surf, void (*DrawInterac
 					break;
 				}
 				case SL_BUMP: {
-					// ignore stage that fails the condition
 					if ( !surfaceRegs[ surfaceStage->conditionRegister ] ) {
 						break;
 					}
-					// draw any previous interaction
 					RB_SubmittInteraction( &inter, DrawInteraction );
 					inter.diffuseImage = NULL;
-					inter.specularImage = NULL;
-					R_SetDrawInteraction( surfaceStage, surfaceRegs, &inter.bumpImage, inter.bumpMatrix, NULL );
 					break;
 				}
 				case SL_DIFFUSE: {
@@ -826,25 +794,7 @@ void RB_CreateSingleDrawInteractions( const drawSurf_t *surf, void (*DrawInterac
 					break;
 				}
 				case SL_SPECULAR: {
-					// ignore stage that fails the condition
-					if ( !surfaceRegs[ surfaceStage->conditionRegister ] ) {
-						break;
-					}
-					if ( inter.specularImage ) {
-						RB_SubmittInteraction( &inter, DrawInteraction );
-					}
-// jmarshall - add no specular support(great for fill lighting).
-					if ( !allowNoSpecular || !vLight->lightDef->parms.noSpecular )
-					{
-						R_SetDrawInteraction( surfaceStage, surfaceRegs, &inter.specularImage,
-												inter.specularMatrix, inter.specularColor.ToFloatPtr() );
-						inter.specularColor[0] *= lightColor[0];
-						inter.specularColor[1] *= lightColor[1];
-						inter.specularColor[2] *= lightColor[2];
-						inter.specularColor[3] *= lightColor[3];
-						inter.vertexColor = surfaceStage->vertexColor;
-					}
-// jmarshall end
+					// specular removed
 					break;
 				}
 			}
