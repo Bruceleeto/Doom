@@ -1366,21 +1366,8 @@ static void R_AddAmbientDrawsurfs( viewEntity_t *vEntity ) {
 				vertexCache.Touch( tri->indexCache );
 			}
 
-			// Soft Particles -- SteveL #3878
-			float particle_radius = -1.0f;		// Default = disallow softening, but allow modelDepthHack if specified in the decl.
-			if ( r_useSoftParticles.GetBool() && r_enableDepthCapture.GetInteger() != 0
-				&& !shader->ReceivesLighting()          // don't soften surfaces that are meant to be solid
-				&& tr.viewDef->renderView.viewID >= 0 ) // Skip during "invisible" rendering passes (e.g. lightgem)
-			{
-				const idRenderModelPrt* prt = dynamic_cast<const idRenderModelPrt*>( def->parms.hModel ); // yuck.
-				if ( prt )
-				{
-					particle_radius = prt->SofteningRadius( surf->id );
-				}
-			}
-
 			// add the surface for drawing
-			R_AddDrawSurf( tri, vEntity, &vEntity->entityDef->parms, shader, vEntity->scissorRect, particle_radius );
+			R_AddDrawSurf( tri, vEntity, &vEntity->entityDef->parms, shader, vEntity->scissorRect, -1.0f );
 
 			// ambientViewCount is used to allow light interactions to be rejected
 			// if the ambient surface isn't visible at all

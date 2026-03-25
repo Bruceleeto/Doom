@@ -453,8 +453,7 @@ void RB_ShowDepthBuffer( void ) {
 	GL_State( GLS_DEPTHFUNC_ALWAYS );
 	qglColor3f( 1, 1, 1 );
 
-	bool haveDepthCapture = r_enableDepthCapture.GetInteger() == 1
-			|| (r_enableDepthCapture.GetInteger() == -1 && r_useSoftParticles.GetBool());
+	bool haveDepthCapture = r_enableDepthCapture.GetInteger() == 1;
 
 	if ( haveDepthCapture ) {
 		//GL_SelectTexture( 0 );
