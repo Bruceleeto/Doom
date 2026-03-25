@@ -65,11 +65,6 @@ extern void Com_UpdateFrameTime();
 extern void Com_WaitForNextTicStart();
 
 
-typedef struct {
-	usercmd_t	cmd;
-	int			consistencyHash;
-} logCmd_t;
-
 struct fileTIME_T {
 	int				index;
 	ID_TIME_T			timeStamp;
@@ -85,15 +80,7 @@ typedef struct {
 	usercmd_t		mapSpawnUsercmd[MAX_ASYNC_CLIENTS];		// needed for tracking delta angles
 } mapSpawnData_t;
 
-typedef enum {
-	TD_NO,
-	TD_YES,
-	TD_YES_THEN_QUIT
-} timeDemo_t;
-
-const int USERCMD_PER_DEMO_FRAME	= 2;
 const int CONNECT_TRANSMIT_TIME		= 1000;
-const int MAX_LOGGED_USERCMDS		= 60*60*60;	// one hour of single player, 15 minutes of four player
 
 class idSessionLocal : public idSession {
 public:
@@ -182,7 +169,6 @@ public:
 	static idCVar		com_showTics;
 	static idCVar		com_minTics;
 	static idCVar		com_fixedTic;
-	static idCVar		com_showDemo;
 	static idCVar		com_skipGameDraw;
 	static idCVar		com_aviDemoWidth;
 	static idCVar		com_aviDemoHeight;
@@ -216,24 +202,14 @@ public:
 
 	int					numClients;				// from serverInfo
 
-	int					logIndex;
-	logCmd_t			loggedUsercmds[MAX_LOGGED_USERCMDS];
-	int					statIndex;
-	logStats_t			loggedStats[MAX_LOGGED_STATS];
-	int					lastSaveIndex;
-	// each game tic, numClients usercmds will be added, until full
-
 	bool				insideUpdateScreen;	// true while inside ::UpdateScreen()
 
 	bool				loadingSaveGame;	// currently loading map from a SaveGame
 	idFile *			savegameFile;		// this is the savegame file to load from
 	int					savegameVersion;
 
-	idFile *			cmdDemoFile;		// if non-zero, we are reading commands from a file
-
 	int					latchedTicNumber;	// set to com_ticNumber each frame
 	int					lastGameTic;		// while latchedTicNumber > lastGameTic, run game frames
-	int					lastDemoTic;
 	bool				syncNextGameFrame;
 
 
@@ -241,14 +217,6 @@ public:
 	idStr				aviDemoShortName;	//
 	float				aviDemoFrameCount;
 	int					aviTicStart;
-
-	timeDemo_t			timeDemo;
-	int					timeDemoStartTime;
-	int					numDemoFrames;		// for timeDemo and demoShot
-	int					demoTimeOffset;
-	renderView_t		currentDemoRenderView;
-	// the next one will be read when
-	// com_frameTime + demoTimeOffset > currentDemoRenderView.
 
 	// TODO: make this private (after sync networking removal and idnet tweaks)
 	idUserInterface *	guiActive;
@@ -289,33 +257,16 @@ public:
 	//=====================================
 	void				Clear();
 
-	void				DrawCmdGraph();
 	void				Draw();
 
-	void				WriteCmdDemo( const char *name, bool save = false);
-	void				StartPlayingCmdDemo( const char *demoName);
-	void				TimeCmdDemo( const char *demoName);
-	void				SaveCmdDemoToFile(idFile *file);
-	void				LoadCmdDemoFromFile(idFile *file);
-	void				StartRecordingRenderDemo( const char *name );
-	void				StopRecordingRenderDemo();
-	void				StartPlayingRenderDemo( idStr name );
-	void				StopPlayingRenderDemo();
-	void				CompressDemoFile( const char *scheme, const char *name );
-	void				TimeRenderDemo( const char *name, bool twice = false );
-	void				AVIRenderDemo( const char *name );
-	void				AVICmdDemo( const char *name );
 	void				AVIGame( const char *name );
 	void				BeginAVICapture( const char *name );
 	void				EndAVICapture();
 
-	void				AdvanceRenderDemo( bool singleFrameOnly );
 	void				RunGameTic();
 
 	void				FinishCmdLoad();
 	void				LoadLoadingGui(const char *mapName);
-
-	void				DemoShot( const char *name );
 
 	void				TestGUI( const char *name );
 

@@ -49,7 +49,6 @@ idCVar	idSessionLocal::com_showAngles( "com_showAngles", "0", CVAR_SYSTEM | CVAR
 idCVar	idSessionLocal::com_minTics( "com_minTics", "1", CVAR_SYSTEM, "" );
 idCVar	idSessionLocal::com_showTics( "com_showTics", "0", CVAR_SYSTEM | CVAR_BOOL, "" );
 idCVar	idSessionLocal::com_fixedTic( "com_fixedTic", "0", CVAR_SYSTEM | CVAR_INTEGER | CVAR_ARCHIVE, "", -1, 10 );
-idCVar	idSessionLocal::com_showDemo( "com_showDemo", "0", CVAR_SYSTEM | CVAR_BOOL, "" );
 idCVar	idSessionLocal::com_skipGameDraw( "com_skipGameDraw", "0", CVAR_SYSTEM | CVAR_BOOL, "" );
 idCVar	idSessionLocal::com_aviDemoSamples( "com_aviDemoSamples", "16", CVAR_SYSTEM, "" );
 idCVar	idSessionLocal::com_aviDemoWidth( "com_aviDemoWidth", "256", CVAR_SYSTEM, "" );
@@ -344,13 +343,11 @@ void idSessionLocal::Clear() {
 	readDemo = NULL;
 	writeDemo = NULL;
 	renderdemoVersion = 0;
-	cmdDemoFile = NULL;
 
 	syncNextGameFrame = false;
 	mapSpawned = false;
 	guiActive = NULL;
 	aviCaptureMode = false;
-	timeDemo = TD_NO;
 	waitingOnBind = false;
 	lastPacifierTime = 0;
 
@@ -439,11 +436,6 @@ void idSessionLocal::Shutdown() {
 
 	if ( aviCaptureMode ) {
 		EndAVICapture();
-	}
-
-	if(timeDemo == TD_YES) {
-		// else the game freezes when showing the timedemo results
-		timeDemo = TD_YES_THEN_QUIT;
 	}
 
 	Stop();
@@ -620,103 +612,7 @@ static idStr FindUnusedFileName( const char *format ) {
 	return filename;
 }
 
-/*
-================
-Session_DemoShot_f
-================
-*/
-static void Session_DemoShot_f( const idCmdArgs &args ) {
-	if ( args.Argc() != 2 ) {
-		idStr filename = FindUnusedFileName( "demos/shot%03i.demo" );
-		sessLocal.DemoShot( filename );
-	} else {
-		sessLocal.DemoShot( va( "demos/shot_%s.demo", args.Argv(1) ) );
-	}
-}
-
 #ifndef	ID_DEDICATED
-/*
-================
-Session_RecordDemo_f
-================
-*/
-static void Session_RecordDemo_f( const idCmdArgs &args ) {
-	if ( args.Argc() != 2 ) {
-		idStr filename = FindUnusedFileName( "demos/demo%03i.demo" );
-		sessLocal.StartRecordingRenderDemo( filename );
-	} else {
-		sessLocal.StartRecordingRenderDemo( va( "demos/%s.demo", args.Argv(1) ) );
-	}
-}
-
-/*
-================
-Session_CompressDemo_f
-================
-*/
-static void Session_CompressDemo_f( const idCmdArgs &args ) {
-	if ( args.Argc() == 2 ) {
-		sessLocal.CompressDemoFile( "2", args.Argv(1) );
-	} else if ( args.Argc() == 3 ) {
-		sessLocal.CompressDemoFile( args.Argv(2), args.Argv(1) );
-	} else {
-		common->Printf("use: CompressDemo <file> [scheme]\nscheme is the same as com_compressDemo, defaults to 2" );
-	}
-}
-
-/*
-================
-Session_StopRecordingDemo_f
-================
-*/
-static void Session_StopRecordingDemo_f( const idCmdArgs &args ) {
-	sessLocal.StopRecordingRenderDemo();
-}
-
-/*
-================
-Session_PlayDemo_f
-================
-*/
-static void Session_PlayDemo_f( const idCmdArgs &args ) {
-	if ( args.Argc() >= 2 ) {
-		sessLocal.StartPlayingRenderDemo( va( "demos/%s", args.Argv(1) ) );
-	}
-}
-
-/*
-================
-Session_TimeDemo_f
-================
-*/
-static void Session_TimeDemo_f( const idCmdArgs &args ) {
-	if ( args.Argc() >= 2 ) {
-		sessLocal.TimeRenderDemo( va( "demos/%s", args.Argv(1) ), ( args.Argc() > 2 ) );
-	}
-}
-
-/*
-================
-Session_TimeDemoQuit_f
-================
-*/
-static void Session_TimeDemoQuit_f( const idCmdArgs &args ) {
-	sessLocal.TimeRenderDemo( va( "demos/%s", args.Argv(1) ) );
-	if ( sessLocal.timeDemo == TD_YES ) {
-		// this allows hardware vendors to automate some testing
-		sessLocal.timeDemo = TD_YES_THEN_QUIT;
-	}
-}
-
-/*
-================
-Session_AVIDemo_f
-================
-*/
-static void Session_AVIDemo_f( const idCmdArgs &args ) {
-	sessLocal.AVIRenderDemo( va( "demos/%s", args.Argv(1) ) );
-}
-
 /*
 ================
 Session_AVIGame_f
@@ -726,48 +622,6 @@ static void Session_AVIGame_f( const idCmdArgs &args ) {
 	sessLocal.AVIGame( args.Argv(1) );
 }
 
-/*
-================
-Session_AVICmdDemo_f
-================
-*/
-static void Session_AVICmdDemo_f( const idCmdArgs &args ) {
-	sessLocal.AVICmdDemo( args.Argv(1) );
-}
-
-/*
-================
-Session_WriteCmdDemo_f
-================
-*/
-static void Session_WriteCmdDemo_f( const idCmdArgs &args ) {
-	if ( args.Argc() == 1 ) {
-		idStr	filename = FindUnusedFileName( "demos/cmdDemo%03i.cdemo" );
-		sessLocal.WriteCmdDemo( filename );
-	} else if ( args.Argc() == 2 ) {
-		sessLocal.WriteCmdDemo( va( "demos/%s.cdemo", args.Argv( 1 ) ) );
-	} else {
-		common->Printf( "usage: writeCmdDemo [demoName]\n" );
-	}
-}
-
-/*
-================
-Session_PlayCmdDemo_f
-================
-*/
-static void Session_PlayCmdDemo_f( const idCmdArgs &args ) {
-	sessLocal.StartPlayingCmdDemo( args.Argv(1) );
-}
-
-/*
-================
-Session_TimeCmdDemo_f
-================
-*/
-static void Session_TimeCmdDemo_f( const idCmdArgs &args ) {
-	sessLocal.TimeCmdDemo( args.Argv(1) );
-}
 #endif
 
 /*
@@ -783,231 +637,6 @@ static void Session_Disconnect_f( const idCmdArgs &args ) {
 	}
 }
 
-#ifndef	ID_DEDICATED
-/*
-================
-Session_ExitCmdDemo_f
-================
-*/
-static void Session_ExitCmdDemo_f( const idCmdArgs &args ) {
-	if ( !sessLocal.cmdDemoFile ) {
-		common->Printf( "not reading from a cmdDemo\n" );
-		return;
-	}
-	fileSystem->CloseFile( sessLocal.cmdDemoFile );
-	common->Printf( "Command demo exited at logIndex %i\n", sessLocal.logIndex );
-	sessLocal.cmdDemoFile = NULL;
-}
-#endif
-
-/*
-================
-idSessionLocal::StartRecordingRenderDemo
-================
-*/
-void idSessionLocal::StartRecordingRenderDemo( const char *demoName ) {
-	if ( writeDemo ) {
-		// allow it to act like a toggle
-		StopRecordingRenderDemo();
-		return;
-	}
-
-	if ( !demoName[0] ) {
-		common->Printf( "idSessionLocal::StartRecordingRenderDemo: no name specified\n" );
-		return;
-	}
-
-	console->Close();
-
-	writeDemo = new idDemoFile;
-	if ( !writeDemo->OpenForWriting( demoName ) ) {
-		common->Printf( "error opening %s\n", demoName );
-		delete writeDemo;
-		writeDemo = NULL;
-		return;
-	}
-
-	common->Printf( "recording to %s\n", writeDemo->GetName() );
-
-	writeDemo->WriteInt( DS_VERSION );
-	writeDemo->WriteInt( RENDERDEMO_VERSION );
-
-	// if we are in a map already, dump the current state
-	sw->StartWritingDemo( writeDemo );
-	rw->StartWritingDemo( writeDemo );
-}
-
-/*
-================
-idSessionLocal::StopRecordingRenderDemo
-================
-*/
-void idSessionLocal::StopRecordingRenderDemo() {
-	if ( !writeDemo ) {
-		common->Printf( "idSessionLocal::StopRecordingRenderDemo: not recording\n" );
-		return;
-	}
-	sw->StopWritingDemo();
-	rw->StopWritingDemo();
-
-	writeDemo->Close();
-	common->Printf( "stopped recording %s.\n", writeDemo->GetName() );
-	delete writeDemo;
-	writeDemo = NULL;
-}
-
-/*
-================
-idSessionLocal::StopPlayingRenderDemo
-
-Reports timeDemo numbers and finishes any avi recording
-================
-*/
-void idSessionLocal::StopPlayingRenderDemo() {
-	if ( !readDemo ) {
-		timeDemo = TD_NO;
-		return;
-	}
-
-	// Record the stop time before doing anything that could be time consuming
-	int timeDemoStopTime = Sys_Milliseconds();
-
-	EndAVICapture();
-
-	readDemo->Close();
-
-	sw->StopAllSounds();
-	soundSystem->SetPlayingSoundWorld( menuSoundWorld );
-
-	common->Printf( "stopped playing %s.\n", readDemo->GetName() );
-	delete readDemo;
-	readDemo = NULL;
-
-	if ( timeDemo ) {
-		// report the stats
-		float	demoSeconds = ( timeDemoStopTime - timeDemoStartTime ) * 0.001f;
-		float	demoFPS = numDemoFrames / demoSeconds;
-		idStr	message = va( "%i frames rendered in %3.1f seconds = %3.1f fps\n", numDemoFrames, demoSeconds, demoFPS );
-
-		common->Printf( "%s", message.c_str() );
-		if ( timeDemo == TD_YES_THEN_QUIT ) {
-			cmdSystem->BufferCommandText( CMD_EXEC_APPEND, "quit\n" );
-		} else {
-			soundSystem->SetMute( true );
-			MessageBox( MSG_OK, message, "Time Demo Results", true );
-			soundSystem->SetMute( false );
-		}
-		timeDemo = TD_NO;
-	}
-}
-
-/*
-================
-idSessionLocal::DemoShot
-
-A demoShot is a single frame demo
-================
-*/
-void idSessionLocal::DemoShot( const char *demoName ) {
-	StartRecordingRenderDemo( demoName );
-
-	// force draw one frame
-	UpdateScreen();
-
-	StopRecordingRenderDemo();
-}
-
-/*
-================
-idSessionLocal::StartPlayingRenderDemo
-================
-*/
-void idSessionLocal::StartPlayingRenderDemo( idStr demoName ) {
-	if ( !demoName[0] ) {
-		common->Printf( "idSessionLocal::StartPlayingRenderDemo: no name specified\n" );
-		return;
-	}
-
-	// make sure localSound / GUI intro music shuts up
-	sw->StopAllSounds();
-	sw->PlayShaderDirectly( "", 0 );
-	menuSoundWorld->StopAllSounds();
-	menuSoundWorld->PlayShaderDirectly( "", 0 );
-
-	// exit any current game
-	Stop();
-
-	// automatically put the console away
-	console->Close();
-
-	// bring up the loading screen manually, since demos won't
-	// call ExecuteMapChange()
-	guiLoading = uiManager->FindGui( "guis/map/loading.gui", true, false, true );
-	guiLoading->SetStateString( "demo", common->GetLanguageDict()->GetString( "#str_02087" ) );
-	readDemo = new idDemoFile;
-	demoName.DefaultFileExtension( ".demo" );
-	if ( !readDemo->OpenForReading( demoName ) ) {
-		common->Printf( "couldn't open %s\n", demoName.c_str() );
-		delete readDemo;
-		readDemo = NULL;
-		Stop();
-		StartMenu();
-		soundSystem->SetMute( false );
-		return;
-	}
-
-	insideExecuteMapChange = true;
-	UpdateScreen();
-	insideExecuteMapChange = false;
-	guiLoading->SetStateString( "demo", "" );
-
-	// setup default render demo settings
-	// that's default for <= Doom3 v1.1
-	renderdemoVersion = 1;
-	savegameVersion = 16;
-
-	AdvanceRenderDemo( true );
-
-	numDemoFrames = 1;
-
-	lastDemoTic = -1;
-	timeDemoStartTime = Sys_Milliseconds();
-}
-
-/*
-================
-idSessionLocal::TimeRenderDemo
-================
-*/
-void idSessionLocal::TimeRenderDemo( const char *demoName, bool twice ) {
-	idStr demo = demoName;
-
-	// no sound in time demos
-	soundSystem->SetMute( true );
-
-	StartPlayingRenderDemo( demo );
-
-	if ( twice && readDemo ) {
-		// cycle through once to precache everything
-		guiLoading->SetStateString( "demo", common->GetLanguageDict()->GetString( "#str_04852" ) );
-		guiLoading->StateChanged( com_frameTime );
-		while ( readDemo ) {
-			insideExecuteMapChange = true;
-			UpdateScreen();
-			insideExecuteMapChange = false;
-			AdvanceRenderDemo( true );
-		}
-		guiLoading->SetStateString( "demo", "" );
-		StartPlayingRenderDemo( demo );
-	}
-
-
-	if ( !readDemo ) {
-		return;
-	}
-
-	timeDemo = TD_YES;
-}
 
 
 /*
@@ -1054,37 +683,6 @@ void idSessionLocal::EndAVICapture() {
 
 /*
 ================
-idSessionLocal::AVIRenderDemo
-================
-*/
-void idSessionLocal::AVIRenderDemo( const char *_demoName ) {
-	idStr	demoName = _demoName;	// copy off from va() buffer
-
-	StartPlayingRenderDemo( demoName );
-	if ( !readDemo ) {
-		return;
-	}
-
-	BeginAVICapture( demoName.c_str() ) ;
-
-	// I don't understand why I need to do this twice, something
-	// strange with the nvidia swapbuffers?
-	UpdateScreen();
-}
-
-/*
-================
-idSessionLocal::AVICmdDemo
-================
-*/
-void idSessionLocal::AVICmdDemo( const char *demoName ) {
-	StartPlayingCmdDemo( demoName );
-
-	BeginAVICapture( demoName ) ;
-}
-
-/*
-================
 idSessionLocal::AVIGame
 
 Start AVI recording the current game session
@@ -1109,58 +707,6 @@ void idSessionLocal::AVIGame( const char *demoName ) {
 	}
 
 	BeginAVICapture( demoName ) ;
-}
-
-/*
-================
-idSessionLocal::CompressDemoFile
-================
-*/
-void idSessionLocal::CompressDemoFile( const char *scheme, const char *demoName ) {
-	idStr	fullDemoName = "demos/";
-	fullDemoName += demoName;
-	fullDemoName.DefaultFileExtension( ".demo" );
-	idStr compressedName = fullDemoName;
-	compressedName.StripFileExtension();
-	compressedName.Append( "_compressed.demo" );
-
-	int savedCompression = cvarSystem->GetCVarInteger("com_compressDemos");
-	bool savedPreload = cvarSystem->GetCVarBool("com_preloadDemos");
-	cvarSystem->SetCVarBool( "com_preloadDemos", false );
-	cvarSystem->SetCVarInteger("com_compressDemos", atoi(scheme) );
-
-	idDemoFile demoread, demowrite;
-	if ( !demoread.OpenForReading( fullDemoName ) ) {
-		common->Printf( "Could not open %s for reading\n", fullDemoName.c_str() );
-		return;
-	}
-	if ( !demowrite.OpenForWriting( compressedName ) ) {
-		common->Printf( "Could not open %s for writing\n", compressedName.c_str() );
-		demoread.Close();
-		cvarSystem->SetCVarBool( "com_preloadDemos", savedPreload );
-		cvarSystem->SetCVarInteger("com_compressDemos", savedCompression);
-		return;
-	}
-	common->SetRefreshOnPrint( true );
-	common->Printf( "Compressing %s to %s...\n", fullDemoName.c_str(), compressedName.c_str() );
-
-	static const int bufferSize = 65535;
-	char buffer[bufferSize];
-	int bytesRead;
-	while ( 0 != (bytesRead = demoread.Read( buffer, bufferSize ) ) ) {
-		demowrite.Write( buffer, bytesRead );
-		common->Printf( "." );
-	}
-
-	demoread.Close();
-	demowrite.Close();
-
-	cvarSystem->SetCVarBool( "com_preloadDemos", savedPreload );
-	cvarSystem->SetCVarInteger("com_compressDemos", savedCompression);
-
-	common->Printf( "Done\n" );
-	common->SetRefreshOnPrint( false );
-
 }
 
 
@@ -1265,172 +811,6 @@ void idSessionLocal::MoveToNewMap( const char *mapName ) {
 }
 
 /*
-==============
-SaveCmdDemoFromFile
-==============
-*/
-void idSessionLocal::SaveCmdDemoToFile( idFile *file ) {
-
-	mapSpawnData.serverInfo.WriteToFileHandle( file );
-
-	for ( int i = 0 ; i < MAX_ASYNC_CLIENTS ; i++ ) {
-		mapSpawnData.userInfo[i].WriteToFileHandle( file );
-		mapSpawnData.persistentPlayerInfo[i].WriteToFileHandle( file );
-	}
-
-	file->Write( &mapSpawnData.mapSpawnUsercmd, sizeof( mapSpawnData.mapSpawnUsercmd ) );
-
-	if ( numClients < 1 ) {
-		numClients = 1;
-	}
-	file->Write( loggedUsercmds, numClients * logIndex * sizeof( loggedUsercmds[0] ) );
-}
-
-/*
-==============
-idSessionLocal::LoadCmdDemoFromFile
-==============
-*/
-void idSessionLocal::LoadCmdDemoFromFile( idFile *file ) {
-
-	mapSpawnData.serverInfo.ReadFromFileHandle( file );
-
-	for ( int i = 0 ; i < MAX_ASYNC_CLIENTS ; i++ ) {
-		mapSpawnData.userInfo[i].ReadFromFileHandle( file );
-		mapSpawnData.persistentPlayerInfo[i].ReadFromFileHandle( file );
-	}
-	file->Read( &mapSpawnData.mapSpawnUsercmd, sizeof( mapSpawnData.mapSpawnUsercmd ) );
-}
-
-/*
-==============
-idSessionLocal::WriteCmdDemo
-
-Dumps the accumulated commands for the current level.
-This should still work after disconnecting from a level
-==============
-*/
-void idSessionLocal::WriteCmdDemo( const char *demoName, bool save ) {
-
-	if ( !demoName[0] ) {
-		common->Printf( "idSessionLocal::WriteCmdDemo: no name specified\n" );
-		return;
-	}
-
-	idStr statsName;
-	if (save) {
-		statsName = demoName;
-		statsName.StripFileExtension();
-		statsName.DefaultFileExtension(".stats");
-	}
-
-	common->Printf( "writing save data to %s\n", demoName );
-
-	idFile *cmdDemoFile = fileSystem->OpenFileWrite( demoName );
-	if ( !cmdDemoFile ) {
-		common->Printf( "Couldn't open for writing %s\n", demoName );
-		return;
-	}
-
-	if ( save ) {
-		cmdDemoFile->Write( &logIndex, sizeof( logIndex ) );
-	}
-
-	SaveCmdDemoToFile( cmdDemoFile );
-
-	if ( save ) {
-		idFile *statsFile = fileSystem->OpenFileWrite( statsName );
-		if ( statsFile ) {
-			statsFile->Write( &statIndex, sizeof( statIndex ) );
-			statsFile->Write( loggedStats, numClients * statIndex * sizeof( loggedStats[0] ) );
-			fileSystem->CloseFile( statsFile );
-		}
-	}
-
-	fileSystem->CloseFile( cmdDemoFile );
-}
-
-/*
-===============
-idSessionLocal::FinishCmdLoad
-===============
-*/
-void idSessionLocal::FinishCmdLoad() {
-}
-
-/*
-===============
-idSessionLocal::StartPlayingCmdDemo
-===============
-*/
-void idSessionLocal::StartPlayingCmdDemo(const char *demoName) {
-	// exit any current game
-	Stop();
-
-	idStr fullDemoName = "demos/";
-	fullDemoName += demoName;
-	fullDemoName.DefaultFileExtension( ".cdemo" );
-	cmdDemoFile = fileSystem->OpenFileRead(fullDemoName);
-
-	if ( cmdDemoFile == NULL ) {
-		common->Printf( "Couldn't open %s\n", fullDemoName.c_str() );
-		return;
-	}
-
-	guiLoading = uiManager->FindGui( "guis/map/loading.gui", true, false, true );
-	//cmdDemoFile->Read(&loadGameTime, sizeof(loadGameTime));
-
-	LoadCmdDemoFromFile(cmdDemoFile);
-
-	// start the map
-	ExecuteMapChange();
-
-	cmdDemoFile = fileSystem->OpenFileRead(fullDemoName);
-
-	// have to do this twice as the execmapchange clears the cmddemofile
-	LoadCmdDemoFromFile(cmdDemoFile);
-
-	// run one frame to get the view angles correct
-	RunGameTic();
-}
-
-/*
-===============
-idSessionLocal::TimeCmdDemo
-===============
-*/
-void idSessionLocal::TimeCmdDemo( const char *demoName ) {
-	StartPlayingCmdDemo( demoName );
-	ClearWipe();
-	UpdateScreen();
-
-	int		startTime = Sys_Milliseconds();
-	int		count = 0;
-	int		minuteStart, minuteEnd;
-	float	sec;
-
-	// run all the frames in sequence
-	minuteStart = startTime;
-
-	while( cmdDemoFile ) {
-		RunGameTic();
-		count++;
-
-		if ( count / 3600 != ( count - 1 ) / 3600 ) {
-			minuteEnd = Sys_Milliseconds();
-			sec = ( minuteEnd - minuteStart ) / 1000.0;
-			minuteStart = minuteEnd;
-			common->Printf( "minute %i took %3.1f seconds\n", count / 3600, sec );
-			UpdateScreen();
-		}
-	}
-
-	int		endTime = Sys_Milliseconds();
-	sec = ( endTime - startTime ) / 1000.0;
-	common->Printf( "%i seconds of game, replayed in %5.1f seconds\n", count / 60, sec );
-}
-
-/*
 ===============
 idSessionLocal::UnloadMap
 
@@ -1440,20 +820,9 @@ Exits with mapSpawned = false
 ===============
 */
 void idSessionLocal::UnloadMap() {
-	StopPlayingRenderDemo();
-
 	// end the current map in the game
 	if ( game ) {
 		game->MapShutdown();
-	}
-
-	if ( cmdDemoFile ) {
-		fileSystem->CloseFile( cmdDemoFile );
-		cmdDemoFile = NULL;
-	}
-
-	if ( writeDemo ) {
-		StopRecordingRenderDemo();
 	}
 
 	mapSpawned = false;
@@ -1727,11 +1096,6 @@ void idSessionLocal::ExecuteMapChange( bool noFadeWipe ) {
 	StartWipe( "wipe2Material" );
 
 	usercmdGen->Clear();
-
-	// start saving commands for possible writeCmdDemo usage
-	logIndex = 0;
-	statIndex = 0;
-	lastSaveIndex = 0;
 
 	// don't bother spinning over all the tics we spent loading
 	lastGameTic = latchedTicNumber = com_ticNumber;
@@ -2363,97 +1727,6 @@ void	idSessionLocal::DrawWipeModel() {
 
 /*
 ===============
-idSessionLocal::AdvanceRenderDemo
-===============
-*/
-void idSessionLocal::AdvanceRenderDemo( bool singleFrameOnly ) {
-	if ( lastDemoTic == -1 ) {
-		lastDemoTic = latchedTicNumber - 1;
-	}
-
-	int skipFrames = 0;
-
-	if ( !aviCaptureMode && !timeDemo && !singleFrameOnly ) {
-		skipFrames = ( (latchedTicNumber - lastDemoTic) / USERCMD_PER_DEMO_FRAME ) - 1;
-		// never skip too many frames, just let it go into slightly slow motion
-		if ( skipFrames > 4 ) {
-			skipFrames = 4;
-		}
-		lastDemoTic = latchedTicNumber - latchedTicNumber % USERCMD_PER_DEMO_FRAME;
-	} else {
-		// always advance a single frame with avidemo and timedemo
-		lastDemoTic = latchedTicNumber;
-	}
-
-	while( skipFrames > -1 ) {
-		int		ds = DS_FINISHED;
-
-		readDemo->ReadInt( ds );
-		if ( ds == DS_FINISHED ) {
-			if ( numDemoFrames != 1 ) {
-				// if the demo has a single frame (a demoShot), continuously replay
-				// the renderView that has already been read
-				Stop();
-				StartMenu();
-			}
-			break;
-		}
-		if ( ds == DS_RENDER ) {
-			if ( rw->ProcessDemoCommand( readDemo, &currentDemoRenderView, &demoTimeOffset ) ) {
-				// a view is ready to render
-				skipFrames--;
-				numDemoFrames++;
-			}
-			continue;
-		}
-		if ( ds == DS_SOUND ) {
-			sw->ProcessDemoCommand( readDemo );
-			continue;
-		}
-		// appears in v1.2, with savegame format 17
-		if ( ds == DS_VERSION ) {
-			readDemo->ReadInt( renderdemoVersion );
-			common->Printf( "reading a v%d render demo\n", renderdemoVersion );
-			// set the savegameVersion to current for render demo paths that share the savegame paths
-			savegameVersion = SAVEGAME_VERSION;
-			continue;
-		}
-		common->Error( "Bad render demo token" );
-	}
-
-	if ( com_showDemo.GetBool() ) {
-		common->Printf( "frame:%i DemoTic:%i latched:%i skip:%i\n", numDemoFrames, lastDemoTic, latchedTicNumber, skipFrames );
-	}
-
-}
-
-/*
-===============
-idSessionLocal::DrawCmdGraph
-
-Graphs yaw angle for testing smoothness
-===============
-*/
-static const int	ANGLE_GRAPH_HEIGHT = 128;
-static const int	ANGLE_GRAPH_STRETCH = 3;
-void idSessionLocal::DrawCmdGraph() {
-	if ( !com_showAngles.GetBool() ) {
-		return;
-	}
-	renderSystem->SetColor4( 0.1f, 0.1f, 0.1f, 1.0f );
-	renderSystem->DrawStretchPic( 0, 480-ANGLE_GRAPH_HEIGHT, MAX_BUFFERED_USERCMD*ANGLE_GRAPH_STRETCH, ANGLE_GRAPH_HEIGHT, 0, 0, 1, 1, whiteMaterial );
-	renderSystem->SetColor4( 0.9f, 0.9f, 0.9f, 1.0f );
-	for ( int i = 0 ; i < MAX_BUFFERED_USERCMD-4 ; i++ ) {
-		usercmd_t	cmd = usercmdGen->TicCmd( latchedTicNumber - (MAX_BUFFERED_USERCMD-4) + i );
-		int h = cmd.angles[1];
-		h >>= 8;
-		h &= (ANGLE_GRAPH_HEIGHT-1);
-		renderSystem->DrawStretchPic( i* ANGLE_GRAPH_STRETCH, 480-h, 1, h, 0, 0, 1, 1, whiteMaterial );
-	}
-}
-
-/*
-===============
 idSessionLocal::PacifierUpdate
 ===============
 */
@@ -2527,9 +1800,6 @@ void idSessionLocal::Draw() {
 		}
 
 		guiActive->Redraw( com_frameTime );
-	} else if ( readDemo ) {
-		rw->RenderScene( &currentDemoRenderView );
-		renderSystem->DrawDemoPics();
 	} else if ( mapSpawned ) {
 		bool gameDraw = false;
 		// normal drawing for both single and multi player
@@ -2543,11 +1813,6 @@ void idSessionLocal::Draw() {
 		if ( !gameDraw ) {
 			renderSystem->SetColor( colorBlack );
 			renderSystem->DrawStretchPic( 0, 0, 640, 480, 0, 0, 1, 1, declManager->FindMaterial( "_white" ) );
-		}
-
-		// save off the 2D drawing from the game
-		if ( writeDemo ) {
-			renderSystem->WriteDemoPics();
 		}
 	} else {
 #if ID_CONSOLE_LOCK
@@ -2582,9 +1847,6 @@ void idSessionLocal::Draw() {
 
 	// draw the wipe material on top of this if it hasn't completed yet
 	DrawWipeModel();
-
-	// draw debug graphs
-	DrawCmdGraph();
 
 	// draw the half console / notify console on top of everything
 	if ( !fullConsole ) {
@@ -2711,18 +1973,6 @@ void idSessionLocal::Frame() {
 		minTic = lastGameTic + com_minTics.GetInteger();
 	}
 
-	if ( readDemo ) {
-		if ( !timeDemo && numDemoFrames != 1 ) {
-			minTic = lastDemoTic + USERCMD_PER_DEMO_FRAME;
-		} else {
-			// timedemos and demoshots will run as fast as they can, other demos
-			// will not run more than 30 hz
-			minTic = latchedTicNumber;
-		}
-	} else if ( writeDemo ) {
-		minTic = lastGameTic + USERCMD_PER_DEMO_FRAME;		// demos are recorded at 30 hz
-	}
-
 	// fixedTic lets us run a forced number of usercmd each frame without timing
 	if ( com_fixedTic.GetInteger() ) {
 		minTic = latchedTicNumber;
@@ -2763,12 +2013,6 @@ void idSessionLocal::Frame() {
 
 	// send frame and mouse events to active guis
 	GuiFrameEvents();
-
-	// advance demos
-	if ( readDemo ) {
-		AdvanceRenderDemo( false );
-		return;
-	}
 
 	//------------ single player game tics --------------
 
@@ -2815,17 +2059,7 @@ void idSessionLocal::Frame() {
 		lastGameTic = latchedTicNumber - 10;
 	}
 
-	// never use more than USERCMD_PER_DEMO_FRAME,
-	// which makes it go into slow motion when recording
-	if ( writeDemo ) {
-		int fixedTic = USERCMD_PER_DEMO_FRAME;
-		// we should have waited long enough
-		if ( numCmdsToRun < fixedTic ) {
-			common->Error( "idSessionLocal::Frame: numCmdsToRun < fixedTic" );
-		}
-		// we may need to dump older commands
-		lastGameTic = latchedTicNumber - fixedTic;
-	} else if ( com_fixedTic.GetInteger() > 0 ) {
+	if ( com_fixedTic.GetInteger() > 0 ) {
 		// this may cause commands run in a previous frame to
 		// be run again if we are going at above the real time rate
 		lastGameTic = latchedTicNumber - com_fixedTic.GetInteger();
@@ -2869,35 +2103,11 @@ idSessionLocal::RunGameTic
 */
 void idSessionLocal::RunGameTic() {
 	D3P_ScopedCPUSample(Session_RunGameTic);
-	logCmd_t	logCmd;
 	usercmd_t	cmd;
 
-	// if we are doing a command demo, read or write from the file
-	if ( cmdDemoFile ) {
-		if ( !cmdDemoFile->Read( &logCmd, sizeof( logCmd ) ) ) {
-			common->Printf( "Command demo completed at logIndex %i\n", logIndex );
-			fileSystem->CloseFile( cmdDemoFile );
-			cmdDemoFile = NULL;
-			if ( aviCaptureMode ) {
-				EndAVICapture();
-				Shutdown();
-			}
-			// we fall out of the demo to normal commands
-			// the impulse and chat character toggles may not be correct, and the view
-			// angle will definitely be wrong
-		} else {
-			cmd = logCmd.cmd;
-			cmd.ByteSwap();
-			logCmd.consistencyHash = LittleInt( logCmd.consistencyHash );
-		}
-	}
-
-	// if we didn't get one from the file, get it locally
-	if ( !cmdDemoFile ) {
-		// get a locally created command
-		cmd = usercmdGen->GetDirectUsercmd();
-		lastGameTic++;
-	}
+	// get a locally created command
+	cmd = usercmdGen->GetDirectUsercmd();
+	lastGameTic++;
 
 	// run the game logic every player move
 	int	start = Sys_Milliseconds();
@@ -2905,30 +2115,6 @@ void idSessionLocal::RunGameTic() {
 
 	int end = Sys_Milliseconds();
 	time_gameFrame += end - start;	// note time used for com_speeds
-
-	// check for constency failure from a recorded command
-	if ( cmdDemoFile ) {
-		if ( ret.consistencyHash != logCmd.consistencyHash ) {
-			common->Printf( "Consistency failure on logIndex %i\n", logIndex );
-			Stop();
-			return;
-		}
-	}
-
-	// save the cmd for cmdDemo archiving
-	if ( logIndex < MAX_LOGGED_USERCMDS ) {
-		loggedUsercmds[logIndex].cmd = cmd;
-		// save the consistencyHash for demo playback verification
-		loggedUsercmds[logIndex].consistencyHash = ret.consistencyHash;
-		if (logIndex % 30 == 0 && statIndex < MAX_LOGGED_STATS) {
-			loggedStats[statIndex].health = ret.health;
-			loggedStats[statIndex].heartRate = ret.heartRate;
-			loggedStats[statIndex].stamina = ret.stamina;
-			loggedStats[statIndex].combat = ret.combat;
-			statIndex++;
-		}
-		logIndex++;
-	}
 
 	syncNextGameFrame = ret.syncNextGameFrame;
 
@@ -2956,7 +2142,7 @@ void idSessionLocal::RunGameTic() {
 			UnloadMap();
 			SetGUI(guiRestartMenu, NULL);
 		} else if ( !idStr::Icmp( args.Argv(0), "disconnect" ) ) {
-			cmdSystem->BufferCommandText( CMD_EXEC_INSERT, "stoprecording ; disconnect" );
+			cmdSystem->BufferCommandText( CMD_EXEC_INSERT, "disconnect" );
 		}
 	}
 }
@@ -2980,25 +2166,11 @@ void idSessionLocal::Init() {
 	cmdSystem->AddCommand( "devmap", Session_DevMap_f, CMD_FL_SYSTEM, "loads a map in developer mode", idCmdSystem::ArgCompletion_MapName );
 	cmdSystem->AddCommand( "testmap", Session_TestMap_f, CMD_FL_SYSTEM, "tests a map", idCmdSystem::ArgCompletion_MapName );
 
-	cmdSystem->AddCommand( "writeCmdDemo", Session_WriteCmdDemo_f, CMD_FL_SYSTEM, "writes a command demo" );
-	cmdSystem->AddCommand( "playCmdDemo", Session_PlayCmdDemo_f, CMD_FL_SYSTEM, "plays back a command demo" );
-	cmdSystem->AddCommand( "timeCmdDemo", Session_TimeCmdDemo_f, CMD_FL_SYSTEM, "times a command demo" );
-	cmdSystem->AddCommand( "exitCmdDemo", Session_ExitCmdDemo_f, CMD_FL_SYSTEM, "exits a command demo" );
-	cmdSystem->AddCommand( "aviCmdDemo", Session_AVICmdDemo_f, CMD_FL_SYSTEM, "writes AVIs for a command demo" );
 	cmdSystem->AddCommand( "aviGame", Session_AVIGame_f, CMD_FL_SYSTEM, "writes AVIs for the current game" );
-
-	cmdSystem->AddCommand( "recordDemo", Session_RecordDemo_f, CMD_FL_SYSTEM, "records a demo" );
-	cmdSystem->AddCommand( "stopRecording", Session_StopRecordingDemo_f, CMD_FL_SYSTEM, "stops demo recording" );
-	cmdSystem->AddCommand( "playDemo", Session_PlayDemo_f, CMD_FL_SYSTEM, "plays back a demo", idCmdSystem::ArgCompletion_DemoName );
-	cmdSystem->AddCommand( "timeDemo", Session_TimeDemo_f, CMD_FL_SYSTEM, "times a demo", idCmdSystem::ArgCompletion_DemoName );
-	cmdSystem->AddCommand( "timeDemoQuit", Session_TimeDemoQuit_f, CMD_FL_SYSTEM, "times a demo and quits", idCmdSystem::ArgCompletion_DemoName );
-	cmdSystem->AddCommand( "aviDemo", Session_AVIDemo_f, CMD_FL_SYSTEM, "writes AVIs for a demo", idCmdSystem::ArgCompletion_DemoName );
-	cmdSystem->AddCommand( "compressDemo", Session_CompressDemo_f, CMD_FL_SYSTEM, "compresses a demo file", idCmdSystem::ArgCompletion_DemoName );
 #endif
 
 	cmdSystem->AddCommand( "disconnect", Session_Disconnect_f, CMD_FL_SYSTEM, "disconnects from a game" );
 
-	cmdSystem->AddCommand( "demoShot", Session_DemoShot_f, CMD_FL_SYSTEM, "writes a screenshot for a demo" );
 	cmdSystem->AddCommand( "testGUI", Session_TestGUI_f, CMD_FL_SYSTEM, "tests a gui" );
 
 #ifndef	ID_DEDICATED
