@@ -29,6 +29,37 @@ If you have questions concerning this license or the applicable additional terms
 #ifndef __ASYNCNETWORK_H__
 #define __ASYNCNETWORK_H__
 
+#ifdef NONET
+
+// Stubbed networking — single player only
+#include "idlib/Str.h"
+#include "idlib/BitMsg.h"
+#include "framework/Compressor.h"
+#include "framework/FileSystem.h"
+#include "framework/Licensee.h"
+#include "framework/CVarSystem.h"
+#include "framework/UsercmdGen.h"
+#include "ui/UserInterface.h"
+
+class idAsyncNetwork {
+public:
+	static void				Init( void ) {}
+	static void				Shutdown( void ) {}
+	static bool				IsActive( void ) { return false; }
+	static void				RunFrame( void ) {}
+
+	static void				WriteUserCmdDelta( idBitMsg &msg, const usercmd_t &cmd, const usercmd_t *base ) {}
+	static void				ReadUserCmdDelta( const idBitMsg &msg, usercmd_t &cmd, const usercmd_t *base ) {}
+	static bool				DuplicateUsercmd( const usercmd_t &previousUserCmd, usercmd_t &currentUserCmd, int frame, int time ) { return false; }
+	static bool				UsercmdInputChanged( const usercmd_t &previousUserCmd, const usercmd_t &currentUserCmd ) { return false; }
+
+	static void				GetNETServers( ) {}
+	static void				ExecuteSessionCommand( const char *sessCmd ) {}
+	static void				BuildInvalidKeyMsg( idStr &msg, bool valid[ 2 ] ) {}
+};
+
+#else // !NONET
+
 #include "idlib/BitMsg.h"
 #include "framework/async/MsgChannel.h"
 #include "framework/async/AsyncClient.h"
@@ -187,5 +218,7 @@ private:
 	static void				CheckNewVersion_f( const idCmdArgs &args );
 	static void				UpdateUI_f( const idCmdArgs &args );
 };
+
+#endif // !NONET
 
 #endif /* !__ASYNCNETWORK_H__ */

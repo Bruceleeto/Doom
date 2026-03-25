@@ -1609,9 +1609,15 @@ void Com_ReloadEngine_f( const idCmdArgs &args ) {
 	}
 	commonLocal.ShutdownGame( true );
 	commonLocal.InitGame();
+#ifndef NONET
 	if ( !menu && !idAsyncNetwork::serverDedicated.GetBool() ) {
 		Sys_ShowConsole( 0, false );
 	}
+#else
+	if ( !menu ) {
+		Sys_ShowConsole( 0, false );
+	}
+#endif
 	common->Printf( "============= ReloadEngine end ===============\n" );
 
 	if ( !cmdSystem->PostReloadEngine() ) {
@@ -2496,6 +2502,7 @@ void idCommonLocal::Frame( void ) {
 
 		Com_UpdateFrameTime(); // DG: put updating com_frameTime into a function
 
+#ifndef NONET
 		idAsyncNetwork::RunFrame();
 
 		if ( idAsyncNetwork::IsActive() ) {
@@ -2504,11 +2511,14 @@ void idCommonLocal::Frame( void ) {
 				session->UpdateScreen( false );
 			}
 		} else {
+#endif
 			session->Frame();
 
 			// normal, in-sequence screen update
 			session->UpdateScreen( false );
+#ifndef NONET
 		}
+#endif
 
 		// report timing information
 		if ( com_speeds.GetBool() ) {
@@ -2566,9 +2576,11 @@ void idCommonLocal::GUIFrame( bool execCmd, bool network ) {
 	Sys_GenerateEvents();
 	eventLoop->RunEventLoop( execCmd );	// and execute any commands
 	Com_UpdateFrameTime(); // DG: put updating com_frameTime into a function
+#ifndef NONET
 	if ( network ) {
 		idAsyncNetwork::RunFrame();
 	}
+#endif
 	session->Frame();
 	session->UpdateScreen( false );
 }
@@ -3132,8 +3144,10 @@ void idCommonLocal::Shutdown( void ) {
 		memset( &asyncThread, 0, sizeof(asyncThread) );
 	}
 
+#ifndef NONET
 	idAsyncNetwork::server.Kill();
 	idAsyncNetwork::client.Shutdown();
+#endif
 
 	// save persistent console history
 	console->SaveHistory();
@@ -3258,6 +3272,7 @@ void idCommonLocal::InitGame( void ) {
 
 	PrintLoadingMessage( common->GetLanguageDict()->GetString( "#str_04347" ) );
 
+#ifndef NONET
 	// init async network
 	idAsyncNetwork::Init();
 
@@ -3273,6 +3288,11 @@ void idCommonLocal::InitGame( void ) {
 		PrintLoadingMessage( common->GetLanguageDict()->GetString( "#str_04348" ) );
 		InitRenderSystem();
 	}
+#endif
+#else
+	// init OpenGL, which will open a window and connect sound and input hardware
+	PrintLoadingMessage( common->GetLanguageDict()->GetString( "#str_04348" ) );
+	InitRenderSystem();
 #endif
 
 	PrintLoadingMessage( common->GetLanguageDict()->GetString( "#str_04349" ) );
@@ -3323,7 +3343,9 @@ void idCommonLocal::ShutdownGame( bool reloading ) {
 	if ( com_enableDebuggerServer.GetBool() )	
 		DebuggerServerShutdown();
 
+#ifndef NONET
 	idAsyncNetwork::client.Shutdown();
+#endif
 
 	// shut down the session
 	session->Shutdown();
@@ -3334,8 +3356,10 @@ void idCommonLocal::ShutdownGame( bool reloading ) {
 	// shut down the sound system
 	soundSystem->Shutdown();
 
+#ifndef NONET
 	// shut down async networking
 	idAsyncNetwork::Shutdown();
+#endif
 
 	// shut down the user command input code
 	usercmdGen->Shutdown();

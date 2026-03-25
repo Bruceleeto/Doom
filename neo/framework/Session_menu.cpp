@@ -641,6 +641,7 @@ void idSessionLocal::HandleMainMenuCommands( const char *menuCommand ) {
 			}
 		}
 
+#ifndef NONET
 		if ( !idStr::Icmp( cmd, "UpdateServers" ) ) {
 			if ( guiActive->State().GetBool( "lanSet" ) ) {
 				cmdSystem->BufferCommandText( CMD_EXEC_NOW, "LANScan" );
@@ -698,6 +699,7 @@ void idSessionLocal::HandleMainMenuCommands( const char *menuCommand ) {
 			idAsyncNetwork::client.serverList.GUIUpdateSelected();
 			continue;
 		}
+#endif
 
 		if ( !idStr::Icmp( cmd, "LANConnect" ) ) {
 			int sel = guiActive->State().GetInt( "serverList_selid_0" );
@@ -1035,6 +1037,7 @@ void idSessionLocal::HandleMainMenuCommands( const char *menuCommand ) {
 			continue;
 		}
 
+#ifndef NONET
 		if ( !idStr::Icmp( cmd, "CheckUpdate" ) ) {
 			idAsyncNetwork::client.SendVersionCheck();
 			continue;
@@ -1044,6 +1047,7 @@ void idSessionLocal::HandleMainMenuCommands( const char *menuCommand ) {
 			idAsyncNetwork::client.SendVersionCheck( true );
 			continue;
 		}
+#endif
 
 		if ( !idStr::Icmp( cmd, "checkKeys" ) ) {
 #if ID_ENFORCE_KEY
@@ -1056,6 +1060,7 @@ void idSessionLocal::HandleMainMenuCommands( const char *menuCommand ) {
 			continue;
 		}
 
+#ifndef NONET
 		// triggered from mainmenu or mpmain
 		if ( !idStr::Icmp( cmd, "punkbuster" ) ) {
 			idStr vcmd;
@@ -1067,6 +1072,7 @@ void idSessionLocal::HandleMainMenuCommands( const char *menuCommand ) {
 			SetPbMenuGuiVars();
 			continue;
 		}
+#endif
 	}
 }
 

@@ -31,7 +31,8 @@ DEFINES := -DD3_ARCH=\"x86\" -DD3_SIZEOFPTR=4 -DD3_OSTYPE=\"linux\" -DD3_IS_BIG_
            -DBUILD_LIBRARY_SUFFIX=\".so\" \
            -DBUILD_LIBDIR=\"/usr/local/lib/doom\" \
            -DBUILD_DATADIR=\"/usr/local/share/doom\" \
-           -DID_ENABLE_CURL
+           -DID_ENABLE_CURL \
+           -DNONET
 
 ifneq ($(NOCURL),0)
   DEFINES += -UID_ENABLE_CURL
@@ -144,12 +145,7 @@ SRC_FRAMEWORK := \
 	framework/UsercmdGen.cpp \
 	framework/Session_menu.cpp \
 	framework/Session.cpp \
-	framework/async/AsyncClient.cpp \
-	framework/async/AsyncNetwork.cpp \
-	framework/async/AsyncServer.cpp \
-	framework/async/MsgChannel.cpp \
 	framework/async/NetworkSystem.cpp \
-	framework/async/ServerScan.cpp \
 	framework/minizip/unzip.cpp
 
 SRC_FRAMEWORK_C := \

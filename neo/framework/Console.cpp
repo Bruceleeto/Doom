@@ -269,6 +269,7 @@ float SCR_DrawAsyncStats( float y ) {
 	int i, outgoingRate, incomingRate;
 	float outgoingCompression, incomingCompression;
 
+#ifndef NONET
 	if ( idAsyncNetwork::server.IsActive() ) {
 
 		SCR_DrawTextRightAlign( y, "server delay = %d msec", idAsyncNetwork::server.GetDelay() );
@@ -310,6 +311,7 @@ float SCR_DrawAsyncStats( float y ) {
 		SCR_DrawTextRightAlign( y, "predicted frames: %d", idAsyncNetwork::client.GetPredictedFrames() );
 
 	}
+#endif
 
 	return y;
 }

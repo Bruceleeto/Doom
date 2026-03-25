@@ -89,9 +89,11 @@ Session_RescanSI_f
 */
 void Session_RescanSI_f( const idCmdArgs &args ) {
 	sessLocal.mapSpawnData.serverInfo = *cvarSystem->MoveCVarsToDict( CVAR_SERVERINFO );
+#ifndef NONET
 	if ( game && idAsyncNetwork::server.IsActive() ) {
 		game->SetServerInfo( sessLocal.mapSpawnData.serverInfo );
 	}
+#endif
 }
 
 #ifndef	ID_DEDICATED
@@ -409,11 +411,13 @@ void idSessionLocal::Stop() {
 	// clear mapSpawned and demo playing flags
 	UnloadMap();
 
+#ifndef NONET
 	// disconnect async client
 	idAsyncNetwork::client.DisconnectFromServer();
 
 	// kill async server
 	idAsyncNetwork::server.Kill();
+#endif
 
 	if ( sw ) {
 		sw->StopAllSounds();
@@ -477,7 +481,11 @@ idSessionLocal::IsMultiplayer
 ===============
 */
 bool	idSessionLocal::IsMultiplayer() {
+#ifndef NONET
 	return idAsyncNetwork::IsActive();
+#else
+	return false;
+#endif
 }
 
 /*
@@ -737,6 +745,7 @@ void idSessionLocal::StartNewGame( const char *mapName, bool devmap ) {
 		}
 	}
 #endif
+#ifndef NONET
 	if ( idAsyncNetwork::server.IsActive() ) {
 		common->Printf("Server running, use si_map / serverMapRestart\n");
 		return;
@@ -745,6 +754,7 @@ void idSessionLocal::StartNewGame( const char *mapName, bool devmap ) {
 		common->Printf("Client running, disconnect from server first\n");
 		return;
 	}
+#endif
 
 	// clear the userInfo so the player starts out with the defaults
 	mapSpawnData.userInfo[0].Clear();
@@ -1003,10 +1013,14 @@ void idSessionLocal::ExecuteMapChange( bool noFadeWipe ) {
 	// before we do this potentially long operation
 	Sys_GrabMouseCursor( false );
 
+#ifndef NONET
 	// if net play, we get the number of clients during mapSpawnInfo processing
 	if ( !idAsyncNetwork::IsActive() ) {
 		numClients = 1;
 	}
+#else
+	numClients = 1;
+#endif
 
 	int start = Sys_Milliseconds();
 
@@ -1025,7 +1039,11 @@ void idSessionLocal::ExecuteMapChange( bool noFadeWipe ) {
 
 	// set the user info
 	for ( i = 0; i < numClients; i++ ) {
+#ifndef NONET
 		game->SetUserInfo( i, mapSpawnData.userInfo[i], idAsyncNetwork::client.IsActive(), false );
+#else
+		game->SetUserInfo( i, mapSpawnData.userInfo[i], false, false );
+#endif
 		game->SetPersistentPlayerInfo( i, mapSpawnData.persistentPlayerInfo[i] );
 	}
 
@@ -1040,14 +1058,26 @@ void idSessionLocal::ExecuteMapChange( bool noFadeWipe ) {
 			common->Warning( "WARNING: Loading savegame failed, will restart the map with the player persistent data!" );
 
 			game->SetServerInfo( mapSpawnData.serverInfo );
+#ifndef NONET
 			game->InitFromNewMap( fullMapName + ".map", rw, sw, idAsyncNetwork::server.IsActive(), idAsyncNetwork::client.IsActive(), Sys_Milliseconds() );
+#else
+			game->InitFromNewMap( fullMapName + ".map", rw, sw, false, false, Sys_Milliseconds() );
+#endif
 		}
 	} else {
 		game->SetServerInfo( mapSpawnData.serverInfo );
+#ifndef NONET
 		game->InitFromNewMap( fullMapName + ".map", rw, sw, idAsyncNetwork::server.IsActive(), idAsyncNetwork::client.IsActive(), Sys_Milliseconds() );
+#else
+		game->InitFromNewMap( fullMapName + ".map", rw, sw, false, false, Sys_Milliseconds() );
+#endif
 	}
 
+#ifndef NONET
 	if ( !idAsyncNetwork::IsActive() && !loadingSaveGame ) {
+#else
+	if ( !loadingSaveGame ) {
+#endif
 		// spawn players
 		for ( i = 0; i < numClients; i++ ) {
 			game->SpawnPlayer( i );
@@ -1063,7 +1093,11 @@ void idSessionLocal::ExecuteMapChange( bool noFadeWipe ) {
 	}
 	uiManager->EndLevelLoad();
 
+#ifndef NONET
 	if ( !idAsyncNetwork::IsActive() && !loadingSaveGame ) {
+#else
+	if ( !loadingSaveGame ) {
+#endif
 		// run a few frames to allow everything to settle
 		for ( i = 0; i < 10; i++ ) {
 			game->RunFrame( mapSpawnData.mapSpawnUsercmd );
@@ -1760,8 +1794,10 @@ void idSessionLocal::PacifierUpdate() {
 
 	UpdateScreen();
 
+#ifndef NONET
 	idAsyncNetwork::client.PacifierUpdate();
 	idAsyncNetwork::server.PacifierUpdate();
+#endif
 }
 
 /*
@@ -2030,11 +2066,13 @@ void idSessionLocal::Frame() {
 		return;
 	}
 
+#ifndef NONET
 	// in message box / GUIFrame, idSessionLocal::Frame is used for GUI interactivity
 	// but we early exit to avoid running game frames
 	if ( idAsyncNetwork::IsActive() ) {
 		return;
 	}
+#endif
 
 	// check for user info changes
 	if ( cvarSystem->GetModifiedFlags() & CVAR_USERINFO ) {
@@ -2203,7 +2241,9 @@ void idSessionLocal::Init() {
 	}
 	guiMainMenu_MapList = uiManager->AllocListGUI();
 	guiMainMenu_MapList->Config( guiMainMenu, "mapList" );
+#ifndef NONET
 	idAsyncNetwork::client.serverList.GUIConfig( guiMainMenu, "serverList" );
+#endif
 	guiRestartMenu = uiManager->FindGui( "guis/restart.gui", true, false, true );
 	guiGameOver = uiManager->FindGui( "guis/gameover.gui", true, false, true );
 	guiMsg = uiManager->FindGui( "guis/msg.gui", true, false, true );
@@ -2227,6 +2267,7 @@ idSessionLocal::GetLocalClientNum
 ===============
 */
 int idSessionLocal::GetLocalClientNum() {
+#ifndef NONET
 	if ( idAsyncNetwork::client.IsActive() ) {
 		return idAsyncNetwork::client.GetLocalClientNum();
 	} else if ( idAsyncNetwork::server.IsActive() ) {
@@ -2240,6 +2281,9 @@ int idSessionLocal::GetLocalClientNum() {
 	} else {
 		return 0;
 	}
+#else
+	return 0;
+#endif
 }
 
 /*
@@ -2398,10 +2442,12 @@ we toggled some key state to CDKEY_CHECKING. send a standalone auth packet to va
 void idSessionLocal::EmitGameAuth( void ) {
 	// make sure the auth reply is empty, we use it to indicate an auth reply
 	authMsg.Empty();
+#ifndef NONET
 	if ( idAsyncNetwork::client.SendAuthCheck( cdkey_state == CDKEY_CHECKING ? cdkey : NULL, xpkey_state == CDKEY_CHECKING ? xpkey : NULL ) ) {
 		authEmitTimeout = Sys_Milliseconds() + CDKEY_AUTH_TIMEOUT;
 		common->DPrintf( "authing with the master..\n" );
 	} else {
+#endif
 		// net is not available
 		common->DPrintf( "sendAuthCheck failed\n" );
 		if ( cdkey_state == CDKEY_CHECKING ) {
@@ -2410,7 +2456,9 @@ void idSessionLocal::EmitGameAuth( void ) {
 		if ( xpkey_state == CDKEY_CHECKING ) {
 			xpkey_state = CDKEY_OK;
 		}
+#ifndef NONET
 	}
+#endif
 }
 
 /*
